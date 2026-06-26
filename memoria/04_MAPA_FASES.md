@@ -55,7 +55,7 @@
 
 ---
 
-## Fase 2 — Coleta Real (5 dias)
+## Fase 2 — Coleta Real (5 dias) 🔄 IMPLEMENTADA
 
 **Objetivo**: 6 coletores reais. Sem LLM. Apenas coleta + armazenamento.
 
@@ -78,7 +78,7 @@
 3. Pelo menos 4 famílias com ≥ 5 achados
 4. 0 duplicatas
 
-**Status**: `[ ] NÃO EXECUTADA`
+**Status**: `[ ] AGUARDANDO EXECUÇÃO — Pipeline implementado, pendente validação`
 
 ---
 

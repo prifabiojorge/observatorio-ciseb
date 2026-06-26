@@ -12,9 +12,9 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 1 CONCLUÍDA — pronta para Fase 2 |
-| **Último checkpoint** | F1.1 — ✅ COMPLETO (pipeline vivo) |
-| **Próximo passo** | Iniciar Fase 2 — Coleta Real (6 coletores) |
+| **Fase atual** | Fase 2 implementada — aguardando validação CHECKPOINT F2.1 |
+| **Último checkpoint** | F2.1 — ⬜ Pendente (aguardando execução do pipeline) |
+| **Próximo passo** | Executar pipeline no Render e verificar CHECKPOINT F2.1 |
 | **Bloqueadores** | Nenhum |
 
 ---
@@ -59,6 +59,19 @@
 [2026-06-26 10:48] [ORQUESTRADOR] 🎉 FASE 1 — BOOTSTRAP CONCLUÍDA. 3 dias de trabalho em ~3 horas.
 ```
 
+### 2026-06-26 — Fase 2: Coleta Real implementada
+
+```
+[2026-06-26 16:21] [ARQUITETO] Parecer Fase 2 lido: 3 bloqueios (B1-B3), 5 avisos (A1-A5).
+[2026-06-26 16:21] [ORQUESTRADOR] Correções pré-Fase 2: B1 (deps), B2 (FastAPI wrapper api.py), B3 (README).
+[2026-06-26 16:21] [ORQUESTRADOR] Avisos A2+A3 resolvidos: python-telegram-bot, sentence-transformers, celery removidos.
+[2026-06-26 16:28] [HARNESS] FASE 2.1: BaseCollector (ABC) + RawFinding + db/queries.py + utils/text.py.
+[2026-06-26 16:28] [HARNESS] Correções A1 (imports src.) e A5 (hash duplicado removido).
+[2026-06-26 16:31] [HARNESS] FASE 2.2: 6 coletores criados — web_rss, github, youtube, scholar, forums, events.
+[2026-06-26 16:33] [HARNESS] FASE 2.3: main.py reescrito como orquestrador (asyncio.gather 6 coletores).
+[2026-06-26 16:34] [ORQUESTRADOR] Commit eba5a1f: 11 arquivos (8 novos + 3 modificados), +1106/-227 linhas.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -80,7 +93,7 @@
 |------------|--------|------|-----------|
 | F0.1 | `[x] COMPLETO (6/6)` | 2026-06-25 | GitHub✅ Supabase✅ Vercel✅ Render✅ DeepSeek✅ Telegram✅ |
 | F1.1 | `[x] COMPLETO` | 2026-06-26 | Finding no DB✅ Telegram✅ Pipeline vivo✅ |
-| F2.1 | `[ ] Pendente` | — | Coleta real ≥ 50 findings |
+| F2.1 | `[ ] Pendente` | — | Aguardando primeira execução (meta ≥50 findings, 4 famílias ≥5) |
 | F3.1 | `[ ] Pendente` | — | Pipeline LLM ≥ 20 scored |
 | F4.1 | `[ ] Pendente` | — | Entrega ponta-a-ponta |
 
@@ -118,5 +131,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-26T10:48:00-03:00
-> **Próxima ação**: Iniciar Fase 2 — Coleta Real: implementar 6 coletores
+> **Última atualização**: 2026-06-26T16:34:00-03:00
+> **Próxima ação**: Executar pipeline (POST /run) e verificar CHECKPOINT F2.1
