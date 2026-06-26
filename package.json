@@ -1,0 +1,17 @@
+{
+    "name": "observatorio-ciseb",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Observatório CISEB — monitoramento em tempo real de conteúdos para os 6 pilares CISEB",
+    "workspaces": [
+        "apps/*"
+    ],
+    "scripts": {
+        "dev": "turbo dev",
+        "build": "turbo build",
+        "lint": "turbo lint"
+    },
+    "devDependencies": {
+        "turbo": "^2.0.0"
+    }
+}
