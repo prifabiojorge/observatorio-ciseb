@@ -82,7 +82,7 @@
 
 ---
 
-## Fase 3 — Classificação + Scoring + Embeddings (7 dias)
+## Fase 3 — Classificação + Scoring + Embeddings (7 dias) ✅ CONCLUÍDA
 
 **Objetivo**: LLM enriquece findings: resumo + classificação em pilares + score 0-100.
 
@@ -102,7 +102,7 @@
 3. Todos pilares com `canonical_embedding` preenchido
 4. Custo DeepSeek: ~US$ 0,01/rodada
 
-**Status**: `[ ] NÃO EXECUTADA`
+**Status**: `[x] COMPLETO — 30 findings scored, 6 embeddings, scores populados, custo ~US$0.015`
 
 ---
 

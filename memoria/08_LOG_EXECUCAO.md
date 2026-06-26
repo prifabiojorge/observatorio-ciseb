@@ -12,10 +12,10 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 2 concluída — CHECKPOINT F2.1 ATINGIDO |
-| **Último checkpoint** | F2.1 — ✅ COMPLETO (123 findings, 4 famílias ≥5) |
-| **Próximo passo** | Iniciar Fase 3 — LLM + Scoring + Embeddings |
-| **Bloqueadores** | YouTube e Reddit com 0 findings (APIs indisponíveis; não bloqueiam) |
+| **Fase atual** | Fase 3 concluída — CHECKPOINT F3.1 ATINGIDO |
+| **Último checkpoint** | F3.1 — ✅ COMPLETO (30 scored, 6 embeddings, ~US$0.015) |
+| **Próximo passo** | Iniciar Fase 4 — Entrega + Revisão Humana |
+| **Bloqueadores** | Nenhum |
 
 ---
 
@@ -84,6 +84,21 @@
 [2026-06-26 20:21] [ORQUESTRADOR] 🎉 CHECKPOINT F2.1 ATINGIDO: 123 findings, 4 famílias ≥5.
 ```
 
+### 2026-06-26 — Fase 3: CHECKPOINT F3.1 ATINGIDO
+
+```
+[2026-06-26 20:58] [ORQUESTRADOR] Fase 3 iniciada — Opção D (HF API BGE-M3 + DeepSeek).
+[2026-06-26 21:02] [HARNESS] FASE 3: Criados deepseek.py, embeddings.py, classifier.py. main.py expandido.
+[2026-06-26 21:08] [ORQUESTRADOR] Commit 3730181: Fase 3 Opção D.
+[2026-06-26 21:12] [ORQUESTRADOR] HF_API_KEY criada. DEEPSEEK_API_KEY adicionada ao Render.
+[2026-06-26 21:25] [HARNESS] 1º teste: KeyError DEEPSEEK + DNS HF. Diagnóstico: Env: HF=✅ DS=❌.
+[2026-06-26 21:28] [ORQUESTRADOR] Correções defensivas: .get() + log DNS + diagnóstico env.
+[2026-06-26 22:52] [HARNESS] 2º teste: DS corrigido (✅). HF API DNS resolvido via router.huggingface.co.
+[2026-06-26 23:05] [HARNESS] 1ª rodada F3: 18 enriched, scores [92][90][89]....
+[2026-06-26 23:44] [HARNESS] 2ª rodada F3: +12 enriched. Total 30 scored.
+[2026-06-26 23:44] [ORQUESTRADOR] 🎉 CHECKPOINT F3.1 ATINGIDO: 30 scored, 6 embeddings, custo ~US$0.015.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -106,7 +121,7 @@
 | F0.1 | `[x] COMPLETO (6/6)` | 2026-06-25 | GitHub✅ Supabase✅ Vercel✅ Render✅ DeepSeek✅ Telegram✅ |
 | F1.1 | `[x] COMPLETO` | 2026-06-26 | Finding no DB✅ Telegram✅ Pipeline vivo✅ |
 | F2.1 | `[x] COMPLETO` | 2026-06-26 | 123 findings, 4 famílias ≥5 (web, github, academic, events) |
-| F3.1 | `[ ] Pendente` | — | Pipeline LLM ≥ 20 scored |
+| F3.1 | `[x] COMPLETO` | 2026-06-26 | 30 scored ✅ 6 embeddings ✅ scores ✅ custo $0.015 ✅ |
 | F4.1 | `[ ] Pendente` | — | Entrega ponta-a-ponta |
 
 ---
@@ -136,12 +151,12 @@
 
 | Serviço | Mês | Custo |
 |---------|-----|-------|
-| DeepSeek | Jun/2026 | US$ 0,00 (não iniciado) |
+| DeepSeek | Jun/2026 | US$ 0,015 (30 scored) |
 | Supabase | Jun/2026 | US$ 0,00 (free tier) |
 | Vercel | Jun/2026 | US$ 0,00 (hobby) |
 | Render | Jun/2026 | US$ 0,00 (free tier) |
 
 ---
 
-> **Última atualização**: 2026-06-26T17:21:00-03:00
-> **Próxima ação**: Iniciar Fase 3 — LLM + Scoring + Embeddings
+> **Última atualização**: 2026-06-26T20:44:00-03:00
+> **Próxima ação**: Iniciar Fase 4 — Entrega + Revisão Humana
