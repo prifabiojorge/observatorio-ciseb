@@ -6,7 +6,7 @@ import httpx
 log = logging.getLogger(__name__)
 
 HF_API_KEY = os.environ.get("HF_API_KEY", "")
-HF_EMBED_URL = os.environ.get("HF_EMBED_URL", "https://api-inference.huggingface.co/models/BAAI/bge-m3")
+HF_EMBED_URL = os.environ.get("HF_EMBED_URL", "https://router.huggingface.co/hf-inference/models/BAAI/bge-m3")
 EMBED_DIM = 1024
 TIMEOUT = 30.0
 
