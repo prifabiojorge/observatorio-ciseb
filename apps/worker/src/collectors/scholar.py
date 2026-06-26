@@ -9,11 +9,12 @@ no contexto brasileiro.
 Aviso: scholarly é síncrono. Para MVP isso é aceitável; em produção,
 considere executar em um thread executor para não bloquear o event loop.
 """
+import asyncio
 from datetime import datetime, timezone
 
 from scholarly import scholarly
 
-from ..base import BaseCollector, RawFinding
+from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
 # Queries de busca — palavras-chave em português focadas no observatório
@@ -43,7 +44,7 @@ class ScholarCollector(BaseCollector):
         findings: list[RawFinding] = []
         for query in QUERIES:
             try:
-                items = self._search(query)
+                items = await self._search(query)
                 findings.extend(items)
             except Exception as exc:
                 print(f"[scholar] Erro na query '{query}': {exc}")
@@ -53,7 +54,7 @@ class ScholarCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    def _search(self, query: str) -> list[RawFinding]:
+    async def _search(self, query: str) -> list[RawFinding]:
         """
         Executa uma pesquisa no Google Scholar e converte os resultados.
 
@@ -63,7 +64,7 @@ class ScholarCollector(BaseCollector):
         Returns:
             Lista de RawFinding (até 5 publicações).
         """
-        search_query = scholarly.search_pubs(query)
+        search_query = await asyncio.to_thread(scholarly.search_pubs, query)
         items: list[RawFinding] = []
 
         for i, pub in enumerate(search_query):

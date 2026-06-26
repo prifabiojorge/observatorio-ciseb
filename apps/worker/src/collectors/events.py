@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 import httpx
 from trafilatura import extract
 
-from ..base import BaseCollector, RawFinding
+from .base import BaseCollector, RawFinding
+from src.utils.text import clean
 
 # ---------------------------------------------------------------------------
 # Fontes de eventos e editais
@@ -109,7 +110,7 @@ class EventsCollector(BaseCollector):
             finding = RawFinding(
                 source_slug=src["slug"],
                 source_url=src["url"],
-                title=f"Edital/Notícia {src['name']} #{i + 1}",
+                title=clean(para[:120]) if len(para) > 10 else f"{src['name']} #{i + 1}",
                 raw_text=para[:10000],
                 language="pt",
                 metadata={

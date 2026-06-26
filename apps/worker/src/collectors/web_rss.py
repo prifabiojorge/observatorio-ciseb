@@ -16,7 +16,7 @@ import feedparser
 import httpx
 from trafilatura import extract
 
-from ..base import BaseCollector, RawFinding
+from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
 # Configuração dos feeds RSS

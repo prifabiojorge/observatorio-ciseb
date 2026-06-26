@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from ..base import BaseCollector, RawFinding
+from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
 # Subreddits monitorados

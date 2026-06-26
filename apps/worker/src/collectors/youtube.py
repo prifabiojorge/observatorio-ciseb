@@ -17,16 +17,15 @@ from datetime import datetime, timezone
 
 import httpx
 
-from ..base import BaseCollector, RawFinding
+from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
-# Canais YouTube — identificadores usados na URL do feed RSS
-#   Formato: "c/NOME" para canais customizados, "user/NOME" para legacy
+# Canais YouTube mapeados com channel_id (mais confiável que username,
+#   pois o parâmetro ?user= do feed RSS não funciona para canais c/).
 # ---------------------------------------------------------------------------
-CHANNELS: list[str] = [
-    "c/ManualdoMundo",          # Maker, experimentos científicos
-    "c/CanalDoEnsino",          # Educação em geral
-    "user/MakerBotIndustries",  # Impressão 3D e fabricação digital
+CHANNELS: list[dict] = [
+    {"name": "Manual do Mundo", "id": "UCgWBoz2GQxKLYYD9rVb5nJQ"},
+    {"name": "Canal do Ensino", "id": "UC_hVRHNYhvcFD5pVZ5hHRXA"},
 ]
 
 
@@ -62,7 +61,7 @@ class YouTubeCollector(BaseCollector):
     # ------------------------------------------------------------------
 
     async def _fetch_channel(
-        self, client: httpx.AsyncClient, channel: str
+        self, client: httpx.AsyncClient, channel: dict
     ) -> list[RawFinding]:
         """
         Busca o feed RSS de um canal YouTube e extrai entradas via regex.
@@ -72,14 +71,12 @@ class YouTubeCollector(BaseCollector):
 
         Args:
             client: Cliente HTTP compartilhado.
-            channel: Identificador do canal (ex: 'c/ManualdoMundo').
+            channel: Dicionário com 'name' e 'id' do canal YouTube.
 
         Returns:
             Lista de RawFinding (até 5 vídeos).
         """
-        # Extrai o nome do canal removendo os prefixos 'c/' ou 'user/'
-        channel_name = channel.replace("c/", "").replace("user/", "")
-        url = f"https://www.youtube.com/feeds/videos.xml?user={channel_name}"
+        url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel['id']}"
 
         response = await client.get(url)
         if response.status_code != 200:
@@ -102,13 +99,13 @@ class YouTubeCollector(BaseCollector):
 
         return items
 
-    def _parse_entry(self, entry_xml: str, channel: str) -> RawFinding | None:
+    def _parse_entry(self, entry_xml: str, channel: dict) -> RawFinding | None:
         """
         Extrai título e link de uma entrada <entry> do feed RSS do YouTube.
 
         Args:
             entry_xml: Fragmento XML de uma <entry>.
-            channel: Identificador do canal de origem.
+            channel: Dicionário com 'name' e 'id' do canal de origem.
 
         Returns:
             RawFinding populado ou None se não for possível extrair.
@@ -131,7 +128,8 @@ class YouTubeCollector(BaseCollector):
             raw_text=f"Vídeo educativo: {title}. Disponível em: {link}",
             language="pt",
             metadata={
-                "channel": channel,
+                "channel_name": channel["name"],
+                "channel_id": channel["id"],
                 "platform": "youtube",
             },
         )

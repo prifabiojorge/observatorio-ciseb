@@ -42,10 +42,19 @@ ALL_COLLECTORS = [
 
 # ─── Pipeline ────────────────────────────────────────────
 
-async def process_finding(finding: RawFinding) -> Optional[str]:
+async def process_finding(
+    finding: RawFinding,
+    family: str = "web",
+    source_name: str = "",
+) -> Optional[str]:
     """
     Processa um RawFinding: hash → dedup → ensure_source → insert.
     Retorna o finding_id ou None se duplicado.
+
+    Args:
+        finding: RawFinding a ser processado.
+        family: Família da fonte (ex: 'web', 'github', 'social'), vinda do coletor.
+        source_name: Nome legível da fonte, vindo do coletor.
     """
     supabase = get_supabase()
     
@@ -58,11 +67,11 @@ async def process_finding(finding: RawFinding) -> Optional[str]:
     if existing:
         return None  # duplicado, pular silenciosamente
     
-    # 3. Garantir source
+    # 3. Garantir source (family e source_name recebidos do coletor)
     source_id = ensure_source(
         slug=finding.source_slug,
-        name=finding.source_slug,  # será atualizado pelo coletor
-        family=finding.metadata.get("family", "web"),
+        name=source_name or finding.source_slug,
+        family=family,
     )
     
     # 4. Inserir finding
@@ -99,7 +108,7 @@ async def run_collector(collector) -> tuple[str, int, int]:
         inserted = 0
         
         for finding in raw_findings:
-            fid = await process_finding(finding)
+            fid = await process_finding(finding, collector.family, collector.source_name)
             if fid:
                 inserted += 1
         
