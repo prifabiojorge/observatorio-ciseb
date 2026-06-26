@@ -14,7 +14,7 @@ import httpx
 from trafilatura import extract
 
 from .base import BaseCollector, RawFinding
-from src.utils.text import clean
+from utils.text import clean
 
 # ---------------------------------------------------------------------------
 # Fontes de eventos e editais

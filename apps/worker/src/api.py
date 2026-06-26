@@ -6,7 +6,7 @@ import os
 import asyncio
 import logging
 from fastapi import FastAPI, HTTPException
-from src.main import main as run_pipeline
+from main import main as run_pipeline
 
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Observatório CISEB Worker", version="0.1.0")

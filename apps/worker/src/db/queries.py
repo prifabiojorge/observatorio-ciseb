@@ -4,7 +4,7 @@ Centraliza operações comuns de banco para evitar duplicação nos coletores.
 """
 from __future__ import annotations
 from typing import Optional
-from src.db.supabase import get_supabase
+from db.supabase import get_supabase
 
 
 def ensure_source(slug: str, name: str, family: str, config: dict | None = None) -> str:

@@ -17,17 +17,17 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"))
 
 # ─── Imports internos ────────────────────────────────────
-from src.collectors.base import RawFinding
-from src.collectors.web_rss import WebRSSCollector
-from src.collectors.github import GitHubCollector
-from src.collectors.youtube import YouTubeCollector
-from src.collectors.scholar import ScholarCollector
-from src.collectors.forums import ForumsCollector
-from src.collectors.events import EventsCollector
-from src.db.supabase import get_supabase
-from src.db.queries import ensure_source, finding_exists, insert_finding, update_source_polled
-from src.utils.hashing import content_hash
-from src.utils.text import clean, snippet
+from collectors.base import RawFinding
+from collectors.web_rss import WebRSSCollector
+from collectors.github import GitHubCollector
+from collectors.youtube import YouTubeCollector
+from collectors.scholar import ScholarCollector
+from collectors.forums import ForumsCollector
+from collectors.events import EventsCollector
+from db.supabase import get_supabase
+from db.queries import ensure_source, finding_exists, insert_finding, update_source_polled
+from utils.hashing import content_hash
+from utils.text import clean, snippet
 
 # ─── Constantes ──────────────────────────────────────────
 ALL_COLLECTORS = [
