@@ -1,19 +1,20 @@
 """
-Coletor YouTube — busca vídeos educacionais via feed RSS de pesquisa.
+Coletor YouTube — busca vídeos educacionais via Invidious API pública.
 
-O YouTube disponibiliza feeds RSS para resultados de busca sem
-necessidade de API Key. Este coletor pesquisa palavras-chave
-relevantes (robótica educacional, impressão 3D, programação para
-crianças, Arduino, micro:bit, cultura maker) e extrai os vídeos
-mais recentes dos resultados.
+O Invidious é um proxy front-end para o YouTube que oferece uma API
+REST pública sem necessidade de API Key. Este coletor utiliza instâncias
+públicas do Invidious como fallback para garantir resiliência.
 
-Cada query retorna até 3 vídeos, totalizando potencialmente 18
-findings por rodada (6 queries × 3 vídeos), garantindo volume
-suficiente para o CHECKPOINT F2.1.
+Cada query retorna até 3 vídeos. Com 4 queries, o potencial máximo é
+de 12 findings por rodada, visando alcançar ≥5 findings da família
+social para o CHECKPOINT F2.1.
+
+Estratégia de fallback:
+  1. Tenta instância primária (slipfox.xyz)
+  2. Em caso de falha, tenta instância secundária (reallyaweso.me)
+  3. Se nenhuma responder, retorna lista vazia para a query
 """
-import html
-import re
-from datetime import datetime, timezone
+
 from urllib.parse import quote_plus
 
 import httpx
@@ -21,35 +22,52 @@ import httpx
 from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
-# Palavras-chave de busca no YouTube (feed RSS público)
+# Instâncias públicas do Invidious (ordenadas por preferência)
+# ---------------------------------------------------------------------------
+INVIDIOUS_INSTANCES: list[str] = [
+    "https://invidious.slipfox.xyz",
+    "https://invidious.reallyaweso.me",
+]
+
+# ---------------------------------------------------------------------------
+# Palavras-chave de busca em português
 # ---------------------------------------------------------------------------
 SEARCH_QUERIES: list[str] = [
     "robótica educacional",
-    "impressão 3D educação",
-    "programação para crianças",
-    "arduino aula",
-    "microbit tutorial",
-    "cultura maker escola",
+    "impressão 3D escola",
+    "programação crianças scratch",
+    "arduino projeto educativo",
 ]
+
+# ---------------------------------------------------------------------------
+# Constantes de coleta
+# ---------------------------------------------------------------------------
+MAX_VIDEOS_PER_QUERY: int = 3
+INVIDIOUS_TIMEOUT: float = 15.0
 
 
 class YouTubeCollector(BaseCollector):
-    """Coletor de vídeos educacionais via feed RSS de busca do YouTube."""
+    """Coletor de vídeos educacionais via Invidious API pública."""
 
     source_slug: str = "youtube"
-    source_name: str = "YouTube — Vídeos Educacionais (busca RSS)"
+    source_name: str = "YouTube — Vídeos Educacionais (Invidious)"
     family: str = "social"
 
     async def collect(self) -> list[RawFinding]:
         """
         Coleta vídeos para cada palavra-chave configurada.
 
-        Cada query contribui com até 3 vídeos por rodada.
-        Um erro em uma query não interrompe a coleta das demais.
+        Cada query é processada independentemente; um erro em uma query
+        não interrompe a coleta das demais. O mecanismo de fallback entre
+        instâncias Invidious garante resiliência contra indisponibilidade
+        de servidores proxy.
+
+        Returns:
+            Lista de RawFinding para inserção no banco.
         """
         findings: list[RawFinding] = []
         async with httpx.AsyncClient(
-            timeout=15.0,
+            timeout=INVIDIOUS_TIMEOUT,
             headers={"User-Agent": "ObservatorioCISEB/1.0"},
         ) as client:
             for query in SEARCH_QUERIES:
@@ -71,95 +89,84 @@ class YouTubeCollector(BaseCollector):
         self, client: httpx.AsyncClient, query: str
     ) -> list[RawFinding]:
         """
-        Busca vídeos via feed RSS de pesquisa do YouTube.
+        Busca vídeos via Invidious API com fallback entre instâncias.
 
-        O endpoint https://www.youtube.com/feeds/videos.xml?q=...
-        retorna um feed Atom com os resultados da busca, sem
-        necessidade de autenticação.
+        O endpoint utilizado é:
+          {instance}/api/v1/search?q={query}&type=video&sort=relevance
+
+        A API do Invidious é gratuita, não requer autenticação e retorna
+        JSON estruturado com campos como: title, videoId, author,
+        lengthSeconds, description.
 
         Args:
             client: Cliente HTTP compartilhado.
             query: Palavra-chave de busca (será URL-encoded).
 
         Returns:
-            Lista de RawFinding (até 3 vídeos por query).
+            Lista de RawFinding (até MAX_VIDEOS_PER_QUERY por query).
+            Lista vazia se nenhuma instância responder com sucesso.
         """
-        url = (
-            f"https://www.youtube.com/feeds/videos.xml"
-            f"?q={quote_plus(query)}"
-        )
-        response = await client.get(url)
-
-        if response.status_code != 200:
-            print(
-                f"[youtube] Status {response.status_code} "
-                f"para query '{query}'"
-            )
-            return []
-
-        items: list[RawFinding] = []
-        entries = re.findall(
-            r"<entry>(.*?)</entry>", response.text, re.DOTALL
-        )
-
-        for entry_xml in entries[:3]:  # máximo 3 vídeos por query
+        for instance in INVIDIOUS_INSTANCES:
             try:
-                finding = self._parse_entry(entry_xml, query)
-                if finding is not None:
+                url = (
+                    f"{instance}/api/v1/search"
+                    f"?q={quote_plus(query)}"
+                    f"&type=video"
+                    f"&sort=relevance"
+                )
+                response = await client.get(url)
+
+                if response.status_code != 200:
+                    print(
+                        f"[youtube] Invidious {instance} "
+                        f"status {response.status_code}"
+                    )
+                    continue  # Tenta próxima instância
+
+                data = response.json()
+
+                items: list[RawFinding] = []
+                for video in data[:MAX_VIDEOS_PER_QUERY]:
+                    # Validação mínima: precisa de videoId e title
+                    video_id = video.get("videoId", "")
+                    title = video.get("title", "")
+                    if not video_id or not title:
+                        continue
+
+                    # Monta texto bruto com metadados do vídeo
+                    author = video.get("author", "Canal desconhecido")
+                    duration = video.get("lengthSeconds", 0)
+                    description = video.get("description", "")[:500]
+
+                    finding = RawFinding(
+                        source_slug="youtube",
+                        source_url=(
+                            f"https://youtube.com/watch?v={video_id}"
+                        ),
+                        title=f"[YouTube] {title}",
+                        raw_text=(
+                            f"Vídeo: {title}. "
+                            f"Canal: {author}. "
+                            f"Duração: {duration}s. "
+                            f"{description}"
+                        ),
+                        language="pt",
+                        metadata={
+                            "query": query,
+                            "channel": author,
+                            "platform": "youtube",
+                            "duration_seconds": duration,
+                        },
+                    )
                     items.append(finding)
+
+                return items  # Sucesso — não tenta outras instâncias
+
             except Exception as exc:
-                print(f"[youtube] Erro ao parse entry: {exc}")
-                continue
+                print(
+                    f"[youtube] Erro Invidious {instance}: {exc}"
+                )
+                continue  # Tenta próxima instância
 
-        return items
-
-    def _parse_entry(self, entry_xml: str, query: str) -> RawFinding | None:
-        """
-        Extrai título, link e autor de uma entrada <entry> do feed Atom.
-
-        Args:
-            entry_xml: Fragmento XML de uma <entry>.
-            query: Palavra-chave de busca que originou este resultado.
-
-        Returns:
-            RawFinding populado ou None se não for possível extrair
-            os campos mínimos (título).
-        """
-        # Extrai título (obrigatório)
-        title_match = re.search(r"<title>(.*?)</title>", entry_xml)
-        if not title_match:
-            return None
-
-        # Extrai link alternativo (href do vídeo)
-        link_match = re.search(
-            r'<link rel="alternate" href="([^"]+)"', entry_xml
-        )
-
-        # Extrai nome do autor/canal
-        author_match = re.search(
-            r"<author>.*?<name>(.*?)</name>", entry_xml, re.DOTALL
-        )
-
-        title = html.unescape(title_match.group(1))
-        link = link_match.group(1) if link_match else ""
-        author = (
-            html.unescape(author_match.group(1))
-            if author_match
-            else "Canal desconhecido"
-        )
-
-        return RawFinding(
-            source_slug="youtube",
-            source_url=link,
-            title=f"[YouTube] {title}",
-            raw_text=(
-                f"Vídeo educativo sobre '{query}': {title}. "
-                f"Canal: {author}. Link: {link}"
-            ),
-            language="pt",
-            metadata={
-                "query": query,
-                "channel": author,
-                "platform": "youtube",
-            },
-        )
+        # Nenhuma instância respondeu com sucesso
+        return []
