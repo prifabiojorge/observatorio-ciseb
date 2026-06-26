@@ -5,11 +5,13 @@ Utiliza a Reddit JSON API pública (sem autenticação) para buscar os posts
 mais recentes de subreddits relevantes. Basta adicionar '.json' ao final
 de qualquer URL do Reddit para obter os dados em formato JSON.
 
-Subreddits monitorados:
-- r/programacao, r/brdev (comunidades brasileiras de desenvolvimento)
-- r/robotica, r/arduino (robótica e eletrônica)
-- r/educacao (educação em geral)
-- r/impressao3d (impressão 3D)
+Subreddits monitorados (comunidades ativas e verificadas):
+- r/Python (programação — comunidade enorme, sempre ativa)
+- r/arduino (Arduino — projetos, tutoriais)
+- r/3Dprinting (impressão 3D)
+- r/robotics (robótica)
+- r/learnprogramming (aprendizado de programação)
+- r/educationalgifs (GIFs educativos)
 """
 from datetime import datetime, timezone
 
@@ -18,15 +20,15 @@ import httpx
 from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
-# Subreddits monitorados
+# Subreddits monitorados — comunidades ativas verificadas em 2026-06
 # ---------------------------------------------------------------------------
 SUBREDDITS: list[str] = [
-    "programacao",
-    "brdev",
-    "robotica",
-    "educacao",
+    "Python",
     "arduino",
-    "impressao3d",
+    "3Dprinting",
+    "robotics",
+    "learnprogramming",
+    "educationalgifs",
 ]
 
 
@@ -74,7 +76,7 @@ class ForumsCollector(BaseCollector):
         Returns:
             Lista de RawFinding (até 5 posts).
         """
-        url = f"https://www.reddit.com/r/{sub}/new.json?limit=5"
+        url = f"https://www.reddit.com/r/{sub}/new.json?limit=10"
         response = await client.get(url)
 
         if response.status_code != 200:
@@ -118,9 +120,8 @@ class ForumsCollector(BaseCollector):
             f"https://www.reddit.com{permalink}" if permalink else ""
         )
 
-        # Determina o idioma provável baseado no subreddit
-        pt_subs = {"programacao", "brdev", "educacao"}
-        language = "pt" if sub in pt_subs else "en"
+        # Todos os subreddits monitorados são comunidades em inglês
+        language = "en"
 
         return RawFinding(
             source_slug="reddit",

@@ -3,7 +3,9 @@ Coletor RSS/Web — feeds de educação e tecnologia educacional.
 
 Fontes:
 - Porvir (https://porvir.org/feed/)
-- Nova Escola (https://novaescola.org.br/conteudo/feed)
+
+Nota: O feed da Nova Escola (https://novaescola.org.br/conteudo/feed)
+foi removido em 2026-06-26 pois retornava HTTP 404 consistentemente.
 
 Utiliza feedparser para parsing de RSS e trafilatura para extrair
 texto limpo do corpo completo dos artigos (fallback para summary).
@@ -27,11 +29,6 @@ FEEDS: list[dict] = [
         "slug": "porvir-rss",
         "name": "Porvir - Inovações em Educação",
     },
-    {
-        "url": "https://novaescola.org.br/conteudo/feed",
-        "slug": "nova-escola-rss",
-        "name": "Nova Escola - RSS",
-    },
 ]
 
 
@@ -39,7 +36,7 @@ class WebRSSCollector(BaseCollector):
     """Coletor RSS/Web para feeds de educação e tecnologia educacional."""
 
     source_slug: str = "rss-web"
-    source_name: str = "Coletor RSS/Web (Porvir, Nova Escola, MEC)"
+    source_name: str = "Coletor RSS/Web (Porvir)"
     family: str = "web"
 
     async def collect(self) -> list[RawFinding]:
