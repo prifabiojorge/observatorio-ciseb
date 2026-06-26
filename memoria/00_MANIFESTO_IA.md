@@ -68,5 +68,5 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 
 ---
 
-> **Última atualização**: 2026-06-26T16:34:00-03:00
-> **Atualizado por**: Orquestrador (Fase 2 implementada — 6 coletores + orquestrador)
+> **Última atualização**: 2026-06-26T17:21:00-03:00
+> **Atualizado por**: Orquestrador (CHECKPOINT F2.1 ATINGIDO — 123 findings, 4 famílias ≥5)

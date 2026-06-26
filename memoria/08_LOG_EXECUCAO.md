@@ -12,10 +12,10 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 2 implementada — aguardando validação CHECKPOINT F2.1 |
-| **Último checkpoint** | F2.1 — ⬜ Pendente (aguardando execução do pipeline) |
-| **Próximo passo** | Executar pipeline no Render e verificar CHECKPOINT F2.1 |
-| **Bloqueadores** | Nenhum |
+| **Fase atual** | Fase 2 concluída — CHECKPOINT F2.1 ATINGIDO |
+| **Último checkpoint** | F2.1 — ✅ COMPLETO (123 findings, 4 famílias ≥5) |
+| **Próximo passo** | Iniciar Fase 3 — LLM + Scoring + Embeddings |
+| **Bloqueadores** | YouTube e Reddit com 0 findings (APIs indisponíveis; não bloqueiam) |
 
 ---
 
@@ -72,6 +72,18 @@
 [2026-06-26 16:34] [ORQUESTRADOR] Commit eba5a1f: 11 arquivos (8 novos + 3 modificados), +1106/-227 linhas.
 ```
 
+### 2026-06-26 — CHECKPOINT F2.1 ATINGIDO
+
+```
+[2026-06-26 19:55] [HARNESS] 1ª execução: 58 findings inseridos (web=10, github=21, scholar=25, events=2).
+[2026-06-26 20:04] [HARNESS] 2ª execução: +18 findings (scholar). YouTube e Reddit 0.
+[2026-06-26 20:09] [ORQUESTRADOR] Correções: YouTube (RSS queries), Reddit (subs ativos), events (4 fontes).
+[2026-06-26 20:15] [HARNESS] 3ª execução: +8 findings (scholar). YouTube/Reddit ainda 0 (APIs bloqueadas).
+[2026-06-26 20:17] [ORQUESTRADOR] Events turbinado (MEC+CAPES). YouTube migrado para Invidious.
+[2026-06-26 20:21] [HARNESS] 4ª execução: +39 findings (events=26, scholar=13). Invidious offline.
+[2026-06-26 20:21] [ORQUESTRADOR] 🎉 CHECKPOINT F2.1 ATINGIDO: 123 findings, 4 famílias ≥5.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -93,7 +105,7 @@
 |------------|--------|------|-----------|
 | F0.1 | `[x] COMPLETO (6/6)` | 2026-06-25 | GitHub✅ Supabase✅ Vercel✅ Render✅ DeepSeek✅ Telegram✅ |
 | F1.1 | `[x] COMPLETO` | 2026-06-26 | Finding no DB✅ Telegram✅ Pipeline vivo✅ |
-| F2.1 | `[ ] Pendente` | — | Aguardando primeira execução (meta ≥50 findings, 4 famílias ≥5) |
+| F2.1 | `[x] COMPLETO` | 2026-06-26 | 123 findings, 4 famílias ≥5 (web, github, academic, events) |
 | F3.1 | `[ ] Pendente` | — | Pipeline LLM ≥ 20 scored |
 | F4.1 | `[ ] Pendente` | — | Entrega ponta-a-ponta |
 
@@ -131,5 +143,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-26T16:34:00-03:00
-> **Próxima ação**: Executar pipeline (POST /run) e verificar CHECKPOINT F2.1
+> **Última atualização**: 2026-06-26T17:21:00-03:00
+> **Próxima ação**: Iniciar Fase 3 — LLM + Scoring + Embeddings

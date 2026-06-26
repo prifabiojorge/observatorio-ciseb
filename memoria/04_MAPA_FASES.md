@@ -55,7 +55,7 @@
 
 ---
 
-## Fase 2 — Coleta Real (5 dias) 🔄 IMPLEMENTADA
+## Fase 2 — Coleta Real (5 dias) ✅ CONCLUÍDA
 
 **Objetivo**: 6 coletores reais. Sem LLM. Apenas coleta + armazenamento.
 
@@ -78,7 +78,7 @@
 3. Pelo menos 4 famílias com ≥ 5 achados
 4. 0 duplicatas
 
-**Status**: `[ ] AGUARDANDO EXECUÇÃO — Pipeline implementado, pendente validação`
+**Status**: `[x] COMPLETO — 123 findings, 4 famílias ≥5 (web, github, academic, events)`
 
 ---
 
