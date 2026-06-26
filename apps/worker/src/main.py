@@ -124,6 +124,82 @@ async def run_collector(collector) -> tuple[str, int, int]:
         return (name, 0, 0)
 
 
+# ─── Fase 3: Enriquecimento + Scoring ─────────────────────
+
+_pillar_id_cache: dict[str, str] = {}
+
+def _get_pillar_id_map() -> dict[str, str]:
+    global _pillar_id_cache
+    if not _pillar_id_cache:
+        supabase = get_supabase()
+        for p in supabase.table("pillars").select("id, slug").execute().data:
+            _pillar_id_cache[p["slug"]] = p["id"]
+    return _pillar_id_cache
+
+async def run_enrich_and_score(batch_size: int = 20) -> dict:
+    from llm.embeddings import embed_text, embed_pillars
+    from llm.classifier import enrich, compute_score, novelty_score
+
+    stats = {"enriched": 0, "failed": 0, "scored_high": 0}
+
+    supabase = get_supabase()
+
+    print("[main] Embedando pilares CISEB...")
+    await embed_pillars()
+
+    new_findings = (
+        supabase.table("findings").select("*").eq("status", "new")
+        .order("collected_at", desc=False).limit(batch_size).execute().data
+    )
+    print(f"[main] Enriquecendo {len(new_findings)} findings...")
+
+    for f in new_findings:
+        fid = f["id"]
+        text_to_embed = (f["title"] or "") + " " + (f.get("content_text") or "")
+        vec = await embed_text(text_to_embed)
+        enriched = await enrich(f)
+        if not enriched:
+            stats["failed"] += 1
+            continue
+        enriched["_dim_novelty"] = novelty_score(f.get("collected_at", ""))
+        sc = compute_score(enriched, f)
+
+        supabase.table("findings").update({
+            "embedding": vec,
+            "status": "scored",
+            "snippet": enriched.get("summary", f.get("snippet")),
+            "metadata": {**(f.get("metadata") or {}), "enriched": enriched},
+        }).eq("id", fid).execute()
+
+        pillar_map = _get_pillar_id_map()
+        scores_rows = []
+        for p in enriched.get("pillars", []):
+            pid = pillar_map.get(p["slug"])
+            if not pid:
+                continue
+            scores_rows.append({
+                "finding_id": fid, "pillar_id": pid,
+                "confidence": p["confidence"],
+                "score_composite": sc["score_composite"],
+                "dim_alignment": sc["dim_alignment"],
+                "dim_br_luso": sc["dim_br_luso"],
+                "dim_replicable": sc["dim_replicable"],
+                "dim_practical": sc["dim_practical"],
+                "dim_level": sc["dim_level"],
+                "dim_novelty": sc["dim_novelty"],
+            })
+        if scores_rows:
+            supabase.table("scores").upsert(scores_rows, on_conflict="finding_id,pillar_id").execute()
+
+        stats["enriched"] += 1
+        if sc["score_composite"] >= 75:
+            stats["scored_high"] += 1
+        print(f"[main]   [{sc['score_composite']:>3}] {f['title'][:60]}...")
+
+    print(f"[main] Enriquecimento: {stats}")
+    return stats
+
+
 # ─── Entry Point ─────────────────────────────────────────
 
 async def main():
@@ -165,6 +241,20 @@ async def main():
         print("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
     else:
         print(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
+    
+    # ─── Fase 3: Enriquecimento + Scoring ──────────────────
+    if total_inserted > 0:
+        print()
+        print("[main] ═══════════════════════════════════════════")
+        print("[main] 🔬 FASE 3 — ENRIQUECIMENTO + SCORING")
+        print("[main] ═══════════════════════════════════════════")
+        enrich_stats = await run_enrich_and_score(batch_size=20)
+        if enrich_stats["enriched"] >= 20:
+            print("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
+        else:
+            print(f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1")
+    else:
+        print("[main] Nenhum finding novo — pulando enriquecimento.")
     
     return 0
 
