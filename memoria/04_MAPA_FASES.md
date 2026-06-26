@@ -31,7 +31,7 @@
 
 ---
 
-## Fase 1 — Bootstrap (3 dias)
+## Fase 1 — Bootstrap (3 dias) ✅ CONCLUÍDA
 
 **Objetivo**: Hello world ponta-a-ponta. 1 coletor HTTP → grava 1 linha no Supabase → dispara 1 msg Telegram.
 
@@ -51,7 +51,7 @@
 2. `findings` tem ≥ 1 linha
 3. Fábio recebeu msg Telegram "pipeline vivo"
 
-**Status**: `[ ] NÃO EXECUTADA`
+**Status**: `[x] COMPLETO — Pipeline vivo (3/3 critérios atendidos em 2026-06-26)`
 
 ---
 

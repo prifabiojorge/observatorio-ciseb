@@ -12,9 +12,9 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | CHECKPOINT F0.1 CONCLUÍDO — pronta para Fase 1 |
-| **Último checkpoint** | F0.1 — ✅ COMPLETO (6/6) |
-| **Próximo passo** | Iniciar Fase 1 — Bootstrap: criar monorepo e estrutura |
+| **Fase atual** | Fase 1 CONCLUÍDA — pronta para Fase 2 |
+| **Último checkpoint** | F1.1 — ✅ COMPLETO (pipeline vivo) |
+| **Próximo passo** | Iniciar Fase 2 — Coleta Real (6 coletores) |
 | **Bloqueadores** | Nenhum |
 
 ---
@@ -48,6 +48,17 @@
 [2026-06-25 ~22:15] [ORQUESTRADOR] 🎉 CHECKPOINT F0.1 COMPLETO — 6/6 contas. Fase 1 autorizada.
 ```
 
+### 2026-06-26 — Fase 1 concluída: Hello World ponta-a-ponta
+
+```
+[2026-06-26 10:48] [ORQUESTRADOR] FASE 1.5: Deploy Render — build bem-sucedido com Python 3.11.
+[2026-06-26 10:48] [ORQUESTRADOR] FASE 1.5: Variáveis de ambiente configuradas no Render.
+[2026-06-26 10:48] [HARNESS] CHECKPOINT F1.1 ATINGIDO: Pipeline ponta-a-ponta funcionando.
+[2026-06-26 10:48] [HARNESS] Finding 4141aaef inserido no Supabase. 3 msgs Telegram entregues.
+[2026-06-26 10:48] [ORQUESTRADOR] ⚠️ Render marca "Failed" (falso positivo): script one-shot, corrigir na Fase 4.
+[2026-06-26 10:48] [ORQUESTRADOR] 🎉 FASE 1 — BOOTSTRAP CONCLUÍDA. 3 dias de trabalho em ~3 horas.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -68,7 +79,7 @@
 | Checkpoint | Status | Data | Evidência |
 |------------|--------|------|-----------|
 | F0.1 | `[x] COMPLETO (6/6)` | 2026-06-25 | GitHub✅ Supabase✅ Vercel✅ Render✅ DeepSeek✅ Telegram✅ |
-| F1.1 | `[ ] Pendente` | — | Hello world vivo |
+| F1.1 | `[x] COMPLETO` | 2026-06-26 | Finding no DB✅ Telegram✅ Pipeline vivo✅ |
 | F2.1 | `[ ] Pendente` | — | Coleta real ≥ 50 findings |
 | F3.1 | `[ ] Pendente` | — | Pipeline LLM ≥ 20 scored |
 | F4.1 | `[ ] Pendente` | — | Entrega ponta-a-ponta |
@@ -107,5 +118,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-25T22:15:00-03:00
-> **Próxima ação**: Iniciar Fase 1 — Bootstrap: criar monorepo, migrações, hello world
+> **Última atualização**: 2026-06-26T10:48:00-03:00
+> **Próxima ação**: Iniciar Fase 2 — Coleta Real: implementar 6 coletores
