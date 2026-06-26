@@ -212,6 +212,13 @@ async def main():
     print(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print("[main] ═══════════════════════════════════════════")
     print(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
+
+    # Diagnóstico de ambiente (não expõe valores, só verifica presença)
+    import os as _os
+    _hf = "✅" if _os.environ.get("HF_API_KEY") else "❌"
+    _ds = "✅" if _os.environ.get("DEEPSEEK_API_KEY") else "❌"
+    print(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds}")
+
     print()
     
     # Executa todos os coletores em paralelo

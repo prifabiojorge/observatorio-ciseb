@@ -10,8 +10,11 @@ _client: AsyncOpenAI | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if not api_key:
+            raise ValueError("DEEPSEEK_API_KEY não configurada no ambiente")
         _client = AsyncOpenAI(
-            api_key=os.environ["DEEPSEEK_API_KEY"],
+            api_key=api_key,
             base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
             timeout=60.0,
         )

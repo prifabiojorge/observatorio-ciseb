@@ -35,7 +35,10 @@ async def embed_text(text: str) -> list[float]:
         log.error(f"HF API HTTP {e.response.status_code}: {e.response.text[:200]}")
         return [0.0] * EMBED_DIM
     except Exception as e:
-        log.error(f"HF API falhou: {e}")
+        if "No address" in str(e) or "Name or service not known" in str(e):
+            log.error(f"HF API: erro de DNS/resolução de nome — possível bloqueio de rede no Render Free")
+        else:
+            log.error(f"HF API falhou: {e}")
         return [0.0] * EMBED_DIM
 
 async def embed_pillars() -> None:
