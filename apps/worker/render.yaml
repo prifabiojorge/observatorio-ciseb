@@ -3,6 +3,6 @@ services:
     name: observatorio-ciseb
     env: python
     buildCommand: pip install -e .
-    startCommand: python src/main.py
+    startCommand: python src/api.py
     plan: free
     region: oregon

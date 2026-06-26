@@ -7,7 +7,7 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 | Fase | Status |
 |------|--------|
 | F0 — Fundação | ✅ CHECKPOINT F0.1 completo (6/6) |
-| F1 — Bootstrap | 🔄 Em andamento |
+| F1 — Bootstrap | ✅ Completo |
 | F2 — Coleta Real | ⬜ Pendente |
 | F3 — LLM + Score | ⬜ Pendente |
 | F4 — Entrega | ⬜ Pendente |
