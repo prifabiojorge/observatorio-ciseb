@@ -60,3 +60,36 @@ def truncate(text: str, max_chars: int = 300) -> str:
     if last_space > 0:
         return truncated[:last_space] + "..."
     return truncated[:max_chars] + "..."
+
+
+def clean(text: str) -> str:
+    """
+    Limpeza completa de texto: remove espaços extras, caracteres de controle,
+    normaliza quebras de linha. Usado antes de inserir no banco.
+    """
+    import re
+    if not text:
+        return ""
+    # Remove caracteres de controle (exceto \n, \t)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    # Normaliza espaços
+    text = " ".join(text.split())
+    return text.strip()
+
+
+def snippet(text: str, max_chars: int = 200) -> str:
+    """
+    Cria um snippet/resumo curto do texto.
+    Trunca no primeiro ponto final ou espaço após max_chars.
+    """
+    if not text:
+        return ""
+    text = clean(text)
+    if len(text) <= max_chars:
+        return text
+    # Tenta quebrar no ponto final mais próximo
+    cut = text[:max_chars].rfind(".")
+    if cut > max_chars // 2:
+        return text[:cut + 1]
+    # Fallback: quebra no espaço
+    return text[:max_chars].rsplit(" ", 1)[0] + "..."
