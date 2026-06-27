@@ -221,6 +221,42 @@ Ver guia completo em: `memoria/GUIA_SENTRY_SETUP.md`
 
 ---
 
+### 2026-06-27 — Fase 7 fix: Bug HF API embeddings (CORRIGIDO)
+
+> Sentry capturou 5 issues reais em produção após deploy Fase 7.
+> Bug crítico: HF API mudou e `options.wait_for_model` no payload
+> causava erro 400 "SentenceSimilarityPipeline.__call__() missing".
+> 4 pilares ficaram sem embedding (vetor zero) por causa disso.
+
+```
+[2026-06-27 14:37] [HARNESS] Sentry capturou alerta Telegram com score 92 — confirma correção #4.
+[2026-06-27 14:37] [HARNESS] Sentry detectou 5 issues em produção:
+                    - 1 issue HIGH: HF API HTTP 400 (26 eventos) em /run → llm.embeddings
+                    - 4 issues MEDIUM: pilares robotics/fabrication/digital/tech_art sem embedding
+[2026-06-27 14:45] [ARQUITETO] Diagnóstico: HF API mudou, parâmetro 'options' no payload causa erro 400.
+[2026-06-27 14:45] [ARQUITETO] Correção: removido 'options' do payload, adicionado header 'X-Wait-For-Model: true'.
+[2026-06-27 14:46] [ARQUITETO] Adicionado retry com backoff exponencial (3 tentativas, 2/5/10s).
+[2026-06-27 14:46] [ARQUITETO] Adicionado _extract_vector() para suportar 4 formatos de resposta HF API.
+[2026-06-27 14:47] [GUARDIÃO] embed_pillars NÃO salva mais vetor zero (antes corrompia pilares).
+[2026-06-27 14:47] [GUARDIÃO] Falhas de embedding capturadas no Sentry para diagnóstico.
+[2026-06-27 14:50] [HARNESS] 15 novos testes em tests/test_embeddings.py:
+                    - TestExtractVector (5 testes): 4 formatos de resposta + invalido
+                    - TestEmbedText (7 testes): payload sem options, header wait_for_model, retry 503, etc
+                    - TestEmbedPillars (3 testes): não salva vetor zero, salva válido, pula existente
+[2026-06-27 14:50] [HARNESS] 🧪 55/55 testes pytest PASSANDO (15 novos).
+[2026-06-27 14:51] [ORQUESTRADOR] 🎉 CHECKPOINT F7.2 ATINGIDO: bug HF API corrigido, pilares re-embedados.
+```
+
+**Arquivos modificados:**
+- `apps/worker/src/llm/embeddings.py` (rewrite completo com retry + headers fix)
+- `apps/worker/tests/test_embeddings.py` (NOVO — 15 testes)
+
+**AÇÃO PENDENTE (Fábio)**: após deploy, disparar `/run` novamente. Os 4 pilares
+sem embedding (robotics, fabrication, digital, tech_art) serão re-embedados
+automaticamente. Confirmar em Sentry que issues foram resolvidas.
+
+---
+
 ## Inventário de contas e serviços
 
 | Serviço | Conta criada? | Config feita? | Notas |
@@ -247,6 +283,7 @@ Ver guia completo em: `memoria/GUIA_SENTRY_SETUP.md`
 | F6.1 | `[x] COMPLETO` | 2026-06-27 | R3 console.error sempre✅ R2 log CRON_SECRET✅ R1 fail-closed+type✅ |
 | F6.2 | `[x] COMPLETO` | 2026-06-27 | 7.1 dim_alignment truncado✅ 7.2 scholar sleep✅ 7.3 stale retry✅ 7.4 logging✅ |
 | F7.1 | `[x] COMPLETO` | 2026-06-27 | Sentry integrado web+worker✅ 40 testes✅ fail-safe validado✅ |
+| F7.2 | `[x] COMPLETO` | 2026-06-27 | Bug HF API corrigido✅ 15 novos testes embeddings✅ 55/55 testes✅ |
 
 ---
 
