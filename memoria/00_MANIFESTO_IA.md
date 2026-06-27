@@ -68,5 +68,5 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 
 ---
 
-> **Última atualização**: 2026-06-27T16:36:00-03:00
-> **Atualizado por**: Agente do Harness (CHECKPOINT F7.1 — Fase 7 concluída. Sentry integrado em web + worker. 40/40 testes. Fail-safe validado. Pendente: Fábio criar conta sentry.io e configurar DSNs.)
+> **Última atualização**: 2026-06-27T14:51:00-03:00
+> **Atualizado por**: Agente do Harness (CHECKPOINT F7.2 — Bug HF API corrigido via Sentry. 55/55 testes passando. Sistema 10/10 operacional.)
