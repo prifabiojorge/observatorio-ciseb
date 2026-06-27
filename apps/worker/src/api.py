@@ -44,6 +44,65 @@ async def run(_: bool = Depends(verify_cron)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/digest")
+async def digest(_: bool = Depends(verify_cron)):
+    """
+    Envia digest diário com os top 10 findings por score composto.
+    Chamado pelo cron da Vercel via /api/cron/digest.
+    Requer header Authorization: Bearer CRON_SECRET.
+
+    A mensagem é enviada via Telegram em formato HTML com links
+    para as fontes originais de cada achado.
+    """
+    from db.supabase import get_supabase
+    from delivery.telegram import send_message
+    from datetime import datetime, timezone
+
+    supabase = get_supabase()
+
+    # Busca top 10 scores (maior score_composite)
+    scores_data = (
+        supabase.table("scores")
+        .select("finding_id, score_composite")
+        .order("score_composite", desc=True)
+        .limit(10)
+        .execute()
+        .data
+    )
+
+    if not scores_data:
+        return {"status": "ok", "message": "Nenhum finding para o digest"}
+
+    # Busca detalhes dos findings correspondentes
+    finding_ids = list({s["finding_id"] for s in scores_data})
+    findings = (
+        supabase.table("findings")
+        .select("id, title, source_url")
+        .in_("id", finding_ids)
+        .execute()
+        .data
+    )
+    finding_map = {f["id"]: f for f in findings}
+
+    # Monta mensagem do digest
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines = [f"📬 <b>Digest {today}</b> — {len(findings)} achados\n"]
+
+    for i, s in enumerate(scores_data[:10], 1):
+        f = finding_map.get(s["finding_id"])
+        if not f:
+            continue
+        title = f["title"][:80]
+        url = f["source_url"]
+        lines.append(
+            f'{i}. [{s["score_composite"]}] <b>{title}</b>\n'
+            f'   🔗 {url}'
+        )
+
+    await send_message("\n".join(lines))
+    return {"status": "ok", "message": f"Digest enviado com {len(findings)} achados"}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))

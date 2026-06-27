@@ -30,6 +30,7 @@ from collectors.forums import ForumsCollector
 from collectors.events import EventsCollector
 from db.supabase import get_supabase
 from db.queries import ensure_source, finding_exists, insert_finding, update_source_polled
+from delivery.telegram import send_alert
 from utils.hashing import content_hash
 from utils.text import clean, snippet
 
@@ -201,6 +202,86 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         print(f"[main]   [{sc['score_composite']:>3}] {f['title'][:60]}...")
 
     print(f"[main] Enriquecimento: {stats}")
+
+    # ─── Alertas Telegram (score composto ≥ 75) ─────────────────
+    # Após enriquecer e pontuar, envia alertas para os achados
+    # de maior relevância que ainda não foram notificados.
+    # Limite de 5 alertas/dia para evitar flood no Telegram.
+
+    high_scored = (
+        supabase.table("findings")
+        .select("id, title, source_url, metadata, collected_at")
+        .eq("status", "scored")
+        .execute()
+        .data
+    )
+
+    alerts_sent = 0
+    max_alerts = 5  # Máx 5 alertas por rodada para evitar spam
+
+    for f_alert in high_scored:
+        if alerts_sent >= max_alerts:
+            break
+
+        enriched_meta = (f_alert.get("metadata") or {}).get("enriched", {})
+        if not enriched_meta:
+            continue
+
+        # Seleciona o pilar com maior confiança
+        best_pillar = max(
+            enriched_meta.get("pillars", []),
+            key=lambda p: p.get("confidence", 0),
+            default=None,
+        )
+        if not best_pillar:
+            continue
+
+        # Verifica se já foi enviado alerta para este finding
+        existing_alerts = (
+            supabase.table("deliveries")
+            .select("id")
+            .eq("finding_id", f_alert["id"])
+            .eq("channel", "telegram")
+            .execute()
+            .data
+        )
+        if existing_alerts:
+            continue
+
+        # Score mínimo para alerta: 75/100
+        best_score = int(best_pillar.get("confidence", 0) * 100)
+        if best_score < 75:
+            continue
+
+        try:
+            await send_alert(
+                title=f_alert["title"],
+                summary=enriched_meta.get("summary", f_alert.get("snippet", "")),
+                score=best_score,
+                pillar=best_pillar.get("slug", "ia"),
+                source_url=f_alert["source_url"],
+                application_suggestion=enriched_meta.get("application_suggestion", ""),
+            )
+
+            # Registra a entrega para evitar reenvio
+            supabase.table("deliveries").insert({
+                "finding_id": f_alert["id"],
+                "channel": "telegram",
+                "payload": {
+                    "score": best_score,
+                    "pillar": best_pillar.get("slug"),
+                },
+            }).execute()
+
+            alerts_sent += 1
+            print(
+                f"[main] 📤 Alerta Telegram enviado: "
+                f"[{best_score}] {f_alert['title'][:50]}..."
+            )
+        except Exception as e:
+            print(f"[main] Erro ao enviar alerta Telegram: {e}")
+
+    stats["alerts_sent"] = alerts_sent
     return stats
 
 
