@@ -68,11 +68,11 @@ class TestComputeScore:
         assert sum(pesos) == pytest.approx(1.0)
 
     def test_score_sempre_entre_0_e_100(self):
-        """Score composto nunca deve sair do intervalo [0, 100].
-        
-        ⚠️ BUG CONHECIDO: dim_alignment não é truncado individualmente,
-        apenas score_composite. Com confidence > 1.0 (anômala), 
-        dim_alignment excede 100. Documentado como dívida técnica.
+        """Score composto E dim_alignment nunca devem sair do intervalo [0, 100].
+
+        7.1 (corrigido em 2026-06-27): dim_alignment agora é truncado com
+        max(0, min(100, ...)). Antes, confidence anômala (>1.0) produzia
+        dim_alignment=500. Agora é truncado para 100.
         """
         enriched = {
             "pillars": [{"slug": "ia", "confidence": 5.0}],  # anômalo
@@ -83,11 +83,11 @@ class TestComputeScore:
             "_dim_novelty": 100,
         }
         sc = compute_score(enriched, {})
-        # score_composite é truncado para [0, 100]
+        # Ambos são truncados para [0, 100]
         assert 0 <= sc["score_composite"] <= 100
-        # ⚠️ dim_alignment NÃO é truncado — bug conhecido (confidence anômala vira 500)
-        # Quando o LLM retorna confidence válido (0-1), isto não ocorre.
-        # Documentado para correção futura: aplicar max(0, min(100, ...)) em dim_alignment.
+        assert 0 <= sc["dim_alignment"] <= 100
+        # Especificamente: confidence=5.0 → alignment=5.0 → 500 → truncado para 100
+        assert sc["dim_alignment"] == 100
 
     def test_confianca_media_calculada_corretamente(self):
         """dim_alignment = média das confianças * 100."""
