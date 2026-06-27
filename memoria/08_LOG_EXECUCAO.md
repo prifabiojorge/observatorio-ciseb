@@ -12,10 +12,10 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 5 em andamento (4/8 concluídas) |
-| **Último checkpoint** | F5.4 — ✅ Supabase Auth configurado |
-| **Próximo passo** | F5.5 — Configurar env vars Render/Vercel/GitHub |
-| **Bloqueadores** | Nenhum (fases restantes requerem ações manuais nos dashboards) |
+| **Fase atual** | Fase 5 concluída — CHECKPOINT F5.6 ATINGIDO |
+| **Último checkpoint** | F5.6 — ✅ Deploy Vercel + Render em produção |
+| **Próximo passo** | Fase 5 concluída. Sistema em produção. |
+| **Bloqueadores** | Nenhum |
 
 ---
 
@@ -116,7 +116,7 @@
 [2026-06-27 01:48] [ORQUESTRADOR] 🎉 CHECKPOINT F4.1 ATINGIDO: 4/4 critérios.
 ```
 
-### 2026-06-27 — Fase 5: Produção (em andamento)
+### 2026-06-27 — Fase 5: Produção (CONCLUÍDA)
 
 ```
 [2026-06-27 09:00] [ORQUESTRADOR] Fase 5 iniciada — Plano de Execução lido (1262 linhas, 8 fases).
@@ -129,6 +129,15 @@
 [2026-06-27 09:37] [ARQUITETO] F5.4: 004_rls_auth.sql aplicado com UID real.
 [2026-06-27 09:44] [GUARDIÃO] F5.4: URLs de redirect configuradas (Vercel prod + localhost).
 [2026-06-27 09:44] [ORQUESTRADOR] F5.4: CHECKPOINT F4.1 ATINGIDO — Supabase Auth funcional.
+[2026-06-27 10:50] [GUARDIÃO] F5.5: Novos segredos gerados (CRON_SECRET + DASHBOARD_TOKEN).
+[2026-06-27 10:50] [ORQUESTRADOR] F5.5: CRON_SECRET atualizado no Render. Deploy OK.
+[2026-06-27 11:37] [ORQUESTRADOR] F5.5: CRON_SECRET atualizado na Vercel. SERVICE_ROLE_KEY removido.
+[2026-06-27 11:43] [HARNESS] F5.6: Merge fix/fase5-execucao → main (177a9ff).
+[2026-06-27 11:43] [HARNESS] Vercel build #1: Type error (supabaseKey) — esperado, branch antiga.
+[2026-06-27 11:45] [HARNESS] Vercel build #2: Type error (CRON_SECRET string|undefined) — corrigido.
+[2026-06-27 11:49] [HARNESS] Vercel build #3: Type error (cookiesToSet) — corrigido.
+[2026-06-27 11:53] [HARNESS] Vercel build #4: ✅ BUILD PASSOU! 8 rotas + middleware.
+[2026-06-27 11:53] [ORQUESTRADOR] 🎉 FASE 5 CONCLUÍDA: login, dashboard, auth, cron, 40 testes, segurança.
 ```
 
 ---
@@ -155,6 +164,7 @@
 | F2.1 | `[x] COMPLETO` | 2026-06-26 | 123 findings, 4 famílias ≥5 (web, github, academic, events) |
 | F3.1 | `[x] COMPLETO` | 2026-06-26 | 30 scored ✅ 6 embeddings ✅ scores ✅ custo $0.015 ✅ |
 | F4.1 | `[x] COMPLETO` | 2026-06-27 | Dashboard✅ Aprovar✅ Alertas 5✅ Cron✅ |
+| F5.6 | `[x] COMPLETO` | 2026-06-27 | Deploy Vercel✅ Render✅ Login✅ Dashboard✅ Auth✅ |
 
 ---
 
@@ -194,5 +204,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-27T09:44:00-03:00
-> **Próxima ação**: F5.5 — Configurar env vars Render/Vercel/GitHub
+> **Última atualização**: 2026-06-27T11:53:00-03:00
+> **Próxima ação**: Nenhuma — Fase 5 concluída. Sistema em produção.
