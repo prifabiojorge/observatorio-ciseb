@@ -1,83 +1,45 @@
 /**
- * Rota API — Findings Pendentes de Revisão (Fase 4)
+ * Rota API — Findings Pendentes de Revisão (Fase 5 — Supabase Auth)
  *
- * Lista os top 10 findings com status "scored" para revisão humana,
- * enriquecidos com os scores por pilar.
+ * Lista os top 10 findings com status "scored" para revisão humana.
  *
- * 🔒 AUTENTICAÇÃO OBRIGATÓRIA: Bearer CRON_SECRET no header Authorization.
- *    Previne acesso público a findings ainda não curados (status='scored').
+ * 🔒 AUTENTICAÇÃO REAL via Supabase Auth (não mais CRON_SECRET).
+ *    O middleware.ts já bloqueia requisições sem sessão válida (401).
+ *    Aqui, criamos cliente com cookies do usuário autenticado.
+ *    A RLS policy "reviewer_read_findings" permite ler status='scored'
+ *    apenas se is_reviewer() = true (auth.uid() == Fábio).
  *
- * ⚠️ Exceção MVP: usa SUPABASE_SERVICE_ROLE_KEY (bypass RLS).
- *    A política RLS para ANON só permite status IN ('reviewed','delivered'),
- *    mas o dashboard precisa ler status='scored' para revisão.
+ * ⚠️ Não usa mais SERVICE_ROLE_KEY — RLS governa o acesso.
  *
  * GET /api/findings/pending
  *
- * Headers:
- *   Authorization: Bearer <CRON_SECRET>
- *
  * Responses:
  *   200 — Array de findings com scores aninhados
- *   401 — Token inválido ou ausente
+ *   401 — Não autenticado (bloqueado pelo middleware)
+ *   403 — Autenticado mas não é o revisor (RLS bloqueia)
  *   500 — Erro de banco de dados
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClientFromCookies } from "@/lib/supabase-server";
 
-/**
- * Cliente Supabase com SERVICE_ROLE_KEY — bypass RLS.
- *
- * ⚠️ Esta chave NUNCA deve ser exposta ao client-side.
- *    A rota é server-only (Next.js API Route) e a variável de ambiente
- *    SUPABASE_SERVICE_ROLE_KEY é injetada apenas no backend Vercel.
- */
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export async function GET(_request: NextRequest): Promise<NextResponse> {
+    // ── 1. Cliente Supabase com sessão do usuário (cookies httpOnly) ──
+    // Se não houver sessão, middleware já retornou 401 antes de chegar aqui.
+    const supabase = await createServerClientFromCookies();
 
-/**
- * Segredo compartilhado — fail-closed, sem fallback.
- */
-const CRON_SECRET = process.env.CRON_SECRET;
-if (!CRON_SECRET) {
-    throw new Error(
-        "CRON_SECRET não configurado. Defina a variável no Vercel antes do deploy."
-    );
-}
-
-/** Compara tokens em tempo constante (mitiga timing attacks). */
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-    const enc = new TextEncoder();
-    const aBytes = enc.encode(a);
-    const bBytes = enc.encode(b);
-    if (aBytes.length !== bBytes.length) return false;
-    const diff = new Uint8Array(aBytes.length);
-    for (let i = 0; i < aBytes.length; i++) {
-        diff[i] = aBytes[i] ^ bBytes[i];
-    }
-    return diff.every((b) => b === 0);
-}
-
-/** Verifica o header Authorization. Retorna true se válido, false caso contrário. */
-async function isAuthorized(request: NextRequest): Promise<boolean> {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
-    const token = authHeader.slice("Bearer ".length);
-    return timingSafeEqual(token, CRON_SECRET);
-}
-
-export async function GET(request: NextRequest): Promise<NextResponse> {
-    // ── Autenticação ────────────────────────────────────────────────
-    if (!(await isAuthorized(request))) {
+    // ── 2. Verifica sessão explícita (defesa em profundidade) ─────────
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
         return NextResponse.json(
-            { error: "Unauthorized — Bearer CRON_SECRET required" },
+            { error: "Unauthorized — sessão inválida" },
             { status: 401 }
         );
     }
 
-    // ── 1. Buscar findings scored ──────────────────────────────────
+    // ── 3. Buscar findings scored ─────────────────────────────────────
+    // RLS policy "reviewer_read_findings" filtra: só retorna linhas se
+    // is_reviewer() = true. Se não for o Fábio, retorna array vazio.
     const { data: findings, error } = await supabase
         .from("findings")
         .select("id, title, snippet, source_url, metadata, collected_at, status")
@@ -92,20 +54,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         );
     }
 
-    // ── 2. Se não há findings, retorna array vazio ─────────────────
     if (!findings || findings.length === 0) {
         return NextResponse.json([]);
     }
 
-    // ── 3. Buscar scores para todos os findings retornados ─────────
+    // ── 4. Buscar scores para os findings retornados ──────────────────
     const ids: string[] = findings.map((f: any) => f.id);
-
     const { data: scores } = await supabase
         .from("scores")
         .select("finding_id, pillar_id, score_composite, confidence")
         .in("finding_id", ids);
 
-    // ── 4. Agrupar scores por finding_id ───────────────────────────
+    // ── 5. Agrupar scores por finding_id ──────────────────────────────
     const scoresByFinding: Record<string, any[]> = {};
     (scores || []).forEach((s: any) => {
         if (!scoresByFinding[s.finding_id]) {
@@ -114,7 +74,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         scoresByFinding[s.finding_id].push(s);
     });
 
-    // ── 5. Montar resultado com scores aninhados ───────────────────
+    // ── 6. Montar resultado ───────────────────────────────────────────
     const result = findings.map((f: any) => ({
         ...f,
         scores: scoresByFinding[f.id] || [],
