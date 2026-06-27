@@ -13,6 +13,7 @@ dependencies = [
   "openai==1.35.0",
   "pydantic==2.7.4",
   "scholarly>=1.7.0",
+  "sentry-sdk[fastapi]>=2.10.0",
 ]
 
 [project.optional-dependencies]

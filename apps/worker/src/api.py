@@ -1,12 +1,20 @@
 """
 API mínima do worker — FastAPI wrapper para Render Web Service.
 Resolve o health check do Render (port binding) e expõe endpoints para Vercel cron.
+
+Fase 7 (auditoria Harness 2026-06-27): Sentry integrado para captura de erros
+em produção. Inicializado ANTES de qualquer import interno.
 """
 import os
 import asyncio
 import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+# Fase 7: inicializar Sentry PRIMEIRO, antes de qualquer outro import.
+# Isto garante que erros durante o carregamento de main.py também sejam capturados.
+from sentry_init import init_sentry
+init_sentry()
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +74,9 @@ async def run(_: bool = Depends(verify_cron)):
         await run_pipeline()
         return {"status": "ok", "message": "Pipeline executado com sucesso"}
     except Exception as e:
+        # Fase 7: capturar erro no Sentry antes de propagar
+        from sentry_init import capture_exception
+        capture_exception(e, tags={"endpoint": "/run", "component": "pipeline"})
         logger.error(f"Erro no pipeline: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
