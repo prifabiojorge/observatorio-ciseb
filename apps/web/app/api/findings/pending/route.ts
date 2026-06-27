@@ -1,13 +1,16 @@
 /**
  * Rota API — Findings Pendentes de Revisão (Fase 4)
- * 
+ *
  * Lista os top 10 findings com status "scored" para revisão humana,
  * enriquecidos com os scores por pilar.
- * 
- * Usa SUPABASE_ANON_KEY (read-only pública) — seguro para client-side.
- * 
+ *
+ * ⚠️ Exceção MVP: usa SUPABASE_SERVICE_ROLE_KEY (bypass RLS).
+ *    A política RLS para ANON só permite status IN ('reviewed','delivered'),
+ *    mas o dashboard precisa ler status='scored' para revisão.
+ *    Em produção, migrar para um token de serviço dedicado com RLS customizada.
+ *
  * GET /api/findings/pending
- * 
+ *
  * Responses:
  *   200 — Array de findings com scores aninhados
  *   500 — Erro de banco de dados
@@ -17,12 +20,19 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Cliente Supabase com ANON_KEY para leitura pública.
- * RLS garante que apenas dados permitidos sejam expostos.
+ * Cliente Supabase com SERVICE_ROLE_KEY — bypass RLS.
+ *
+ * Motivo: a política `anon_read_findings` (003_rls.sql:48) restringe
+ * ANON a `status IN ('reviewed','delivered')`, mas o dashboard de
+ * revisão humana precisa ler `status='scored'`.
+ *
+ * ⚠️ Esta chave NUNCA deve ser exposta ao client-side.
+ *    A rota é server-only (Next.js API Route) e a variável de ambiente
+ *    SUPABASE_SERVICE_ROLE_KEY é injetada apenas no backend Vercel.
  */
 const supabase = createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function GET(): Promise<NextResponse> {
