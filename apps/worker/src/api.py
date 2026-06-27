@@ -7,14 +7,15 @@ import asyncio
 import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from main import main as run_pipeline
 
 logger = logging.getLogger(__name__)
-app = FastAPI(title="Observatório CISEB Worker", version="0.1.0")
 
 # ⚠️ FAIL-CLOSED: sem fallback. Se CRON_SECRET não estiver no ambiente,
 # o serviço recusa iniciar em vez de abrir com senha padrão.
 # Este valor NUNCA deve ser hardcoded no repositório.
+# NOTA: A verificação ocorre ANTES de qualquer import interno que possa
+# disparar load_dotenv() (ex: main.py), garantindo que o fail-closed
+# não seja burlado por um .env local com fallback.
 CRON_SECRET = os.environ.get("CRON_SECRET")
 if not CRON_SECRET:
     raise RuntimeError(
@@ -22,6 +23,13 @@ if not CRON_SECRET:
         "Defina a variável CRON_SECRET no Render/Vercel antes de iniciar. "
         "Recusa a iniciar sem autenticação (fail-closed)."
     )
+
+# Só importa main após a verificação de CRON_SECRET — main.py chama
+# load_dotenv() que poderia popular CRON_SECRET de um .env local,
+# burlando o fail-closed.
+from main import main as run_pipeline  # noqa: E402
+
+app = FastAPI(title="Observatório CISEB Worker", version="0.1.0")
 
 security = HTTPBearer(auto_error=False)
 
