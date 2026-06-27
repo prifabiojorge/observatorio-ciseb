@@ -7,10 +7,17 @@
  * Executa em Edge Runtime (antes de qualquer Server Component).
  *
  * Fase 7.5 fix (auditoria Harness 2026-06-27):
- * MIDDLEWARE_INVOCATION_FAILED (500) no /dashboard. Causa: importava de
- * lib/supabase-server.ts que importa next/headers no topo — não disponível
- * no Edge Runtime. Corrigido: importar de lib/supabase-middleware.ts (sem
- * next/headers).
+ * MIDDLEWARE_INVOCATION_FAILED (500) no /dashboard.
+ *
+ * Causa 1: middleware.ts importava de lib/supabase-server.ts que importa
+ * next/headers no topo — não disponível no Edge Runtime. Corrigido com
+ * módulo separado lib/supabase-middleware.ts.
+ *
+ * Causa 2 (esta correção): @supabase/ssr createServerClient pode falhar
+ * se NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY não estiverem
+ * configuradas na Vercel. Adicionado try/catch com fallback gracioso.
+ *
+ * Docs: https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 
 import { NextResponse, NextRequest } from 'next/server';
@@ -31,31 +38,68 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Cria resposta e cliente Supabase que lê/define cookies
-    const response = NextResponse.next();
-    const supabase = createMiddlewareClient(request, response);
+    // Fase 7.5: verificar se env vars estão configuradas antes de tentar
+    // criar cliente Supabase. Se faltar, redireciona para /login com aviso.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Verifica sessão (refresh automático se expirada)
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error || !session) {
-        // Para páginas HTML: redireciona para /login
+    if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('[middleware] NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY não configuradas');
         if (isProtectedPage) {
             const loginUrl = request.nextUrl.clone();
             loginUrl.pathname = '/login';
             loginUrl.searchParams.set('redirect', pathname);
+            loginUrl.searchParams.set('error', 'config_missing');
             return NextResponse.redirect(loginUrl);
         }
-        // Para API: retorna 401 JSON
-        if (isProtectedApi) {
-            return NextResponse.json(
-                { error: 'Unauthorized — login required' },
-                { status: 401 }
-            );
-        }
+        return NextResponse.json(
+            { error: 'Server configuration error — Supabase env vars missing' },
+            { status: 500 }
+        );
     }
 
-    return response;
+    try {
+        // Cria resposta e cliente Supabase que lê/define cookies
+        const response = NextResponse.next();
+        const supabase = createMiddlewareClient(request, response);
+
+        // Verifica sessão (refresh automático se expirada)
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error || !session) {
+            // Para páginas HTML: redireciona para /login
+            if (isProtectedPage) {
+                const loginUrl = request.nextUrl.clone();
+                loginUrl.pathname = '/login';
+                loginUrl.searchParams.set('redirect', pathname);
+                return NextResponse.redirect(loginUrl);
+            }
+            // Para API: retorna 401 JSON
+            if (isProtectedApi) {
+                return NextResponse.json(
+                    { error: 'Unauthorized — login required' },
+                    { status: 401 }
+                );
+            }
+        }
+
+        return response;
+    } catch (err) {
+        // Fase 7.5: capturar qualquer erro no Edge Runtime
+        // Em vez de 500 (MIDDLEWARE_INVOCATION_FAILED), redireciona para /login
+        console.error('[middleware] Erro inesperado:', err);
+        if (isProtectedPage) {
+            const loginUrl = request.nextUrl.clone();
+            loginUrl.pathname = '/login';
+            loginUrl.searchParams.set('redirect', pathname);
+            loginUrl.searchParams.set('error', 'middleware_failed');
+            return NextResponse.redirect(loginUrl);
+        }
+        return NextResponse.json(
+            { error: 'Middleware error', details: String(err) },
+            { status: 500 }
+        );
+    }
 }
 
 export const config = {
