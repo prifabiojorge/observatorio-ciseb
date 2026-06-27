@@ -64,7 +64,7 @@ observatorio-ciseb/
 │       │   ├── 📁 delivery/
 │       │   │   ├── __init__.py
 │       │   │   ├── telegram.py                ← Bot Telegram (cards + digest)
-│       │   │   └── newsletter.py              ← Resend (e-mail)
+│       │   │   └── newsletter.py              ← Resend (e-mail) [PLANEJADO — Fase 4]
 │       │   ├── 📁 db/
 │       │   │   ├── __init__.py
 │       │   │   ├── supabase.py                ← Cliente Supabase singleton
@@ -74,6 +74,7 @@ observatorio-ciseb/
 │       │   │   ├── text.py                    ← Limpeza e truncamento de texto
 │       │   │   └── hashing.py                 ← SHA-256 para deduplicação
 │       │   └── main.py                        ← Entry point do worker
+│       │   ├── api.py                         ← FastAPI wrapper (health check + /run)
 │       ├── 📁 tests/
 │       ├── pyproject.toml
 │       ├── Dockerfile

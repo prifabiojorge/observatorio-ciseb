@@ -28,3 +28,6 @@ Thumbs.db
 
 # Supabase
 supabase/.temp/
+
+# Repomix
+repomix-output.xml

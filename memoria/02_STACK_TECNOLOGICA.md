@@ -13,10 +13,10 @@
 |--------|------------|--------------|------------|
 | Banco de dados | Supabase (Postgres 15 + pgvector) | Free tier (500MB) | Supabase Cloud (Ohio, us-east-2) |
 | Cron + API + Dashboard | Next.js 14 (App Router) | 14.2.x | Vercel Hobby |
-| Worker (coletores+LLM) | Python 3.11 + FastAPI 0.111 + Celery 5.4 | Python 3.11-slim | Render Free |
+| Worker (coletores+LLM) | Python 3.11 + FastAPI 0.135 + Uvicorn 0.49 | Python 3.11-slim | Render Free |
 | Fila | Supabase Queue (pgmq) | Built-in | Supabase |
 | LLM | DeepSeek API (`deepseek-chat`) | API v1 (OpenAI-compatible) | DeepSeek Cloud |
-| Embeddings | `sentence-transformers` + BGE-M3 | bge-m3 v1.0 | Render (CPU) |
+| Embeddings | HuggingFace Inference API (BGE-M3, 1024 dims, free tier) | BGE-M3 via API | HuggingFace Cloud |
 | Telegram bot | `python-telegram-bot` | 21.x | Render |
 | E-mail newsletter | Resend | Free 3k/mês | Resend Cloud |
 | Observabilidade | Logflare (Supabase nativo) + Sentry | Free tiers | Ambos |
@@ -28,18 +28,18 @@
 [project]
 name = "observatorio-worker"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
   "httpx==0.27.0",
   "supabase==2.5.0",
-  "python-telegram-bot==21.4",
+  "fastapi>=0.111.0",
+  "uvicorn>=0.30.0",
   "python-dotenv==1.0.1",
   "feedparser==6.0.11",
   "trafilatura==1.12.0",
-  "sentence-transformers==3.0.1",
   "openai==1.35.0",
   "pydantic==2.7.4",
-  "celery==5.4.0",
+  "scholarly>=1.7.0",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +58,9 @@ SUPABASE_ANON_KEY=eyJxxxxx                  # Vercel + Render
 DEEPSEEK_API_KEY=sk-xxxxx
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+
+# HuggingFace (embeddings BGE-M3 via Inference API)
+HF_API_KEY=hf_xxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Telegram
 # TELEGRAM_BOT_TOKEN=8705525357:AAF-... (ofuscado)
@@ -85,6 +88,7 @@ TOPN_DAILY=10
 - **Advogado do Usuário**: zero infra para Fábio gerenciar. Tudo PaaS.
 - **Arquiteto**: Supabase (pgvector + pgmq) dispensa Redis e banco vetorial separado.
 - **Guardião**: RLS habilitada; `service_role_key` isolada no Render; `anon_key` read-only.
+- **Embeddings**: HuggingFace Inference API (BGE-M3) — sem modelo local, economiza RAM
 
 ---
 

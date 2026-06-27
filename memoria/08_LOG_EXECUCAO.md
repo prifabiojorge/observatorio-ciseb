@@ -143,7 +143,11 @@
 
 | # | Data | Decisão | Persona | Justificativa |
 |---|------|---------|---------|---------------|
-| — | — | Nenhuma até o momento | — | — |
+| 1 | 2026-06-26 | Opção D: HuggingFace Inference API BGE-M3 para embeddings (sem modelo local) | Orquestrador | Render Free 512MB não comporta sentence-transformers |
+| 2 | 2026-06-26 | Coletores YouTube e Reddit com 0 findings — aceito para MVP | Orquestrador | APIs bloqueadas; eventos compensa com 28 findings |
+| 3 | 2026-06-26 | Endpoint HF alterado para router.huggingface.co | Harness | DNS do api-inference.huggingface.co não resolve no Render Free |
+| 4 | 2026-06-26 | Dependências removidas: sentence-transformers, celery, python-telegram-bot | Orquestrador | Não usadas no MVP |
+| 5 | 2026-06-26 | Dependências adicionadas: fastapi, uvicorn, scholarly | Orquestrador | fastapi/uvicorn p/ health check; scholarly p/ Google Scholar |
 
 ---
 
@@ -158,5 +162,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-26T20:44:00-03:00
+> **Última atualização**: 2026-06-26T23:54:00-03:00
 > **Próxima ação**: Iniciar Fase 4 — Entrega + Revisão Humana
