@@ -107,6 +107,12 @@ async def process_finding(
     try:
         return insert_finding(finding_data)
     except Exception as e:
+        # Fase 7: capturar no Sentry (não-quebra pipeline — só loga)
+        try:
+            from sentry_init import capture_exception
+            capture_exception(e, tags={"component": "process_finding"})
+        except ImportError:
+            pass
         log.error(f"[main] Erro ao inserir finding: {e}")
         return None
 

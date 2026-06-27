@@ -68,5 +68,5 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 
 ---
 
-> **Última atualização**: 2026-06-27T16:10:00-03:00
-> **Atualizado por**: Agente do Harness (CHECKPOINT F6.2 — Fase 6 concluída. 3 regressões + 4 gaps corrigidos. 40/40 testes passando.)
+> **Última atualização**: 2026-06-27T16:36:00-03:00
+> **Atualizado por**: Agente do Harness (CHECKPOINT F7.1 — Fase 7 concluída. Sentry integrado em web + worker. 40/40 testes. Fail-safe validado. Pendente: Fábio criar conta sentry.io e configurar DSNs.)

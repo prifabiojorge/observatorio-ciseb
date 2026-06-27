@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClientFromCookies } from "@/lib/supabase-server";
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
@@ -48,6 +49,10 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         .limit(10);
 
     if (error) {
+        // Fase 7: capturar erro de banco no Sentry
+        Sentry.captureException(error, {
+            tags: { component: "api/findings/pending" },
+        });
         return NextResponse.json(
             { error: error.message },
             { status: 500 }

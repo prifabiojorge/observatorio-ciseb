@@ -171,6 +171,56 @@
 
 ---
 
+### 2026-06-27 — Fase 7: Sentry — Observabilidade de erros (CONCLUÍDA)
+
+> Última dívida técnica da auditoria Harness: substituir console.error por
+> Sentry.captureException. Permite alertas em produção, agrupamento de erros,
+> stack traces com source maps, e performance monitoring.
+
+```
+[2026-06-27 16:30] [GUARDIÃO] Sentry SDK adicionado ao web (Next.js) e worker (Python).
+[2026-06-27 16:30] [ARQUITETO] apps/web/sentry.client.config.ts — captura erros de browser.
+[2026-06-27 16:30] [ARQUITETO] apps/web/sentry.server.config.ts — captura erros de API routes.
+[2026-06-27 16:30] [ARQUITETO] apps/web/sentry.edge.config.ts — captura erros de middleware.
+[2026-06-27 16:30] [ARQUITETO] apps/web/instrumentation.ts — registro de Sentry no Node.js runtime.
+[2026-06-27 16:30] [ARQUITETO] apps/web/next.config.mjs — wrap com withSentryConfig (source maps upload).
+[2026-06-27 16:31] [HARNESS] decide/route.ts: Sentry.captureException em estado inconsistente + catch.
+[2026-06-27 16:31] [HARNESS] pending/route.ts: Sentry.captureException em erro de banco.
+[2026-06-27 16:32] [ARQUITETO] apps/worker/src/sentry_init.py — init_sentry() idempotente + fail-safe.
+[2026-06-27 16:32] [ARQUITETO] api.py: init_sentry() chamado ANTES de importar main (captura erros de init).
+[2026-06-27 16:32] [HARNESS] /run endpoint: capture_exception em erro de pipeline.
+[2026-06-27 16:33] [HARNESS] main.py process_finding: capture_exception em erro de insert.
+[2026-06-27 16:33] [GUARDIÃO] Filtro before_send: AbortError e httpx.ConnectError tratados como não-críticos.
+[2026-06-27 16:33] [GUARDIÃO] sendDefaultPii=false — LGPD compliant.
+[2026-06-27 16:35] [HARNESS] Fail-safe validado: sem SENTRY_DSN, worker inicia com warning (não quebra).
+[2026-06-27 16:35] [HARNESS] 🧪 40/40 testes pytest PASSANDO após integração Sentry.
+[2026-06-27 16:36] [ORQUESTRADOR] .env.example atualizado com SENTRY_DSN, SENTRY_DSN_WEB, NEXT_PUBLIC_SENTRY_DSN.
+[2026-06-27 16:36] [ORQUESTRADOR] 🎉 CHECKPOINT F7.1 ATINGIDO: Sentry integrado (ativo após config de DSN).
+```
+
+**Arquivos modificados nesta fase:**
+- `apps/web/sentry.client.config.ts` (NOVO)
+- `apps/web/sentry.server.config.ts` (NOVO)
+- `apps/web/sentry.edge.config.ts` (NOVO)
+- `apps/web/instrumentation.ts` (NOVO)
+- `apps/web/next.config.mjs` (modificado — withSentryConfig)
+- `apps/web/app/api/findings/decide/route.ts` (Sentry.captureException)
+- `apps/web/app/api/findings/pending/route.ts` (Sentry.captureException)
+- `apps/web/package.json` (dependência @sentry/nextjs)
+- `apps/worker/src/sentry_init.py` (NOVO)
+- `apps/worker/src/api.py` (init_sentry + capture_exception no /run)
+- `apps/worker/src/main.py` (capture_exception no process_finding)
+- `apps/worker/pyproject.toml` (dependência sentry-sdk[fastapi])
+- `.env.example` (5 variáveis Sentry)
+
+**⚠️ AÇÃO PENDENTE (Fábio)**: criar conta em https://sentry.io, gerar DSN, e configurar
+variáveis SENTRY_DSN (Render) + SENTRY_DSN_WEB + NEXT_PUBLIC_SENTRY_DSN (Vercel).
+Sem isto, Sentry fica inativo (fail-safe mantém sistema funcional).
+
+Ver guia completo em: `memoria/GUIA_SENTRY_SETUP.md`
+
+---
+
 ## Inventário de contas e serviços
 
 | Serviço | Conta criada? | Config feita? | Notas |
@@ -196,6 +246,7 @@
 | F5.6 | `[x] COMPLETO` | 2026-06-27 | Deploy Vercel✅ Render✅ Login✅ Dashboard✅ Auth✅ |
 | F6.1 | `[x] COMPLETO` | 2026-06-27 | R3 console.error sempre✅ R2 log CRON_SECRET✅ R1 fail-closed+type✅ |
 | F6.2 | `[x] COMPLETO` | 2026-06-27 | 7.1 dim_alignment truncado✅ 7.2 scholar sleep✅ 7.3 stale retry✅ 7.4 logging✅ |
+| F7.1 | `[x] COMPLETO` | 2026-06-27 | Sentry integrado web+worker✅ 40 testes✅ fail-safe validado✅ |
 
 ---
 

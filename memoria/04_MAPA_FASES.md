@@ -186,6 +186,46 @@
 
 ---
 
+## Fase 7 — Sentry — Observabilidade de Erros ✅ CONCLUÍDA
+
+**Objetivo**: Substituir `console.error` por `Sentry.captureException` em produção. Última dívida técnica da auditoria Harness.
+
+### Implementação
+
+| Componente | Arquivo | Status |
+|------------|---------|--------|
+| Web client (browser) | `sentry.client.config.ts` | ✅ |
+| Web server (API routes) | `sentry.server.config.ts` | ✅ |
+| Web edge (middleware) | `sentry.edge.config.ts` | ✅ |
+| Web registration | `instrumentation.ts` | ✅ |
+| Web build (source maps) | `next.config.mjs` (withSentryConfig) | ✅ |
+| Web dependency | `package.json` → `@sentry/nextjs` | ✅ |
+| Web API: decide | `decide/route.ts` → Sentry.captureException | ✅ |
+| Web API: pending | `pending/route.ts` → Sentry.captureException | ✅ |
+| Worker init | `sentry_init.py` (idempotente, fail-safe) | ✅ |
+| Worker API | `api.py` → init_sentry() antes de importar main | ✅ |
+| Worker endpoint /run | `api.py` → capture_exception em erro | ✅ |
+| Worker pipeline | `main.py` → capture_exception em process_finding | ✅ |
+| Worker dependency | `pyproject.toml` → `sentry-sdk[fastapi]` | ✅ |
+| Env vars template | `.env.example` → 5 variáveis Sentry | ✅ |
+| Guia setup | `memoria/GUIA_SENTRY_SETUP.md` | ✅ |
+
+### ✅ CHECKPOINT F7.1
+
+**Critério objetivo**:
+1. `grep -c "@sentry/nextjs" apps/web/package.json` ≥ 1
+2. `ls apps/web/sentry.client.config.ts apps/web/sentry.server.config.ts apps/web/sentry.edge.config.ts apps/web/instrumentation.ts` retorna 4 arquivos
+3. `grep -c "Sentry.captureException" apps/web/app/api/findings/decide/route.ts` ≥ 1
+4. `grep -c "sentry-sdk" apps/worker/pyproject.toml` ≥ 1
+5. `ls apps/worker/src/sentry_init.py` retorna arquivo
+6. `grep -c "init_sentry" apps/worker/src/api.py` ≥ 1
+7. `PYTHONPATH=src python -m pytest tests/ -q` → 40 passed
+8. Fail-safe validado: sem `SENTRY_DSN`, worker inicia com warning (não quebra)
+
+**Status**: `[x] COMPLETO — Sentry integrado em web (Next.js) e worker (Python). 40/40 testes passando. Fail-safe validado. Pendente: Fábio criar conta sentry.io e configurar DSNs (ver GUIA_SENTRY_SETUP.md).`
+
+---
+
 ## Regra de ouro
 
 > **Se o checkpoint falhar, NÃO AVANCE.** Volte, corrija, re-rode.
