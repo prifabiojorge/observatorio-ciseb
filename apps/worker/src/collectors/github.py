@@ -9,8 +9,8 @@ Tópicos pesquisados: educational-robotics, microbit-education,
 scratch-education, arduino-education, maker-education,
 impressao-3d-educacao, ensino-programacao, educational-technology.
 """
+
 import asyncio
-from datetime import datetime, timezone
 
 import httpx
 
@@ -68,9 +68,7 @@ class GitHubCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    async def _search_topic(
-        self, client: httpx.AsyncClient, topic: str
-    ) -> list[RawFinding]:
+    async def _search_topic(self, client: httpx.AsyncClient, topic: str) -> list[RawFinding]:
         """
         Busca repositórios no GitHub pelo tópico informado.
 

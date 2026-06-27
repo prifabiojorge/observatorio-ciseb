@@ -1,5 +1,7 @@
 """Testes para utils/hashing.py — deduplicação SHA-256."""
+
 import pytest
+
 from utils.hashing import content_hash
 
 
@@ -62,6 +64,7 @@ class TestContentHash:
         """Valida que o hash corresponde ao exemplo documentado."""
         # Do memoria/06_CONTRATOS_E_SCHEMAS.md — normalização manual
         import hashlib
+
         manual = hashlib.sha256(
             " ".join(("https://exemplo.com Título Conteúdo").split()).lower().encode("utf-8")
         ).hexdigest()

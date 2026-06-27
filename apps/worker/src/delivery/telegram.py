@@ -10,7 +10,9 @@ Uso:
     await send_message("Olá, mundo!")
     await send_alert("Título", "Resumo", 85, "ia", "https://...")
 """
+
 import os
+
 import httpx
 
 # ── Configuração via variáveis de ambiente (NUNCA hardcoded) ──────────────

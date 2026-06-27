@@ -2,8 +2,11 @@
 Queries reutilizáveis para Supabase.
 Centraliza operações comuns de banco para evitar duplicação nos coletores.
 """
+
 from __future__ import annotations
+
 from typing import Optional
+
 from db.supabase import get_supabase
 
 
@@ -53,7 +56,8 @@ def insert_finding(finding_data: dict) -> str:
 def update_source_polled(slug: str) -> None:
     """Atualiza last_polled_at de uma fonte."""
     from datetime import datetime, timezone
+
     supabase = get_supabase()
-    supabase.table("sources").update(
-        {"last_polled_at": datetime.now(timezone.utc).isoformat()}
-    ).eq("slug", slug).execute()
+    supabase.table("sources").update({"last_polled_at": datetime.now(timezone.utc).isoformat()}).eq(
+        "slug", slug
+    ).execute()

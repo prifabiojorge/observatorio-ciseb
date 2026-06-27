@@ -12,12 +12,12 @@ As 6 famílias de fontes cobertas:
 """
 
 from .base import BaseCollector, RawFinding
-from .web_rss import WebRSSCollector
-from .github import GitHubCollector
-from .youtube import YouTubeCollector
-from .scholar import ScholarCollector
-from .forums import ForumsCollector
 from .events import EventsCollector
+from .forums import ForumsCollector
+from .github import GitHubCollector
+from .scholar import ScholarCollector
+from .web_rss import WebRSSCollector
+from .youtube import YouTubeCollector
 
 __all__ = [
     "BaseCollector",

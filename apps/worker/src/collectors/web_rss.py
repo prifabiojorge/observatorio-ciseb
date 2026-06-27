@@ -10,8 +10,7 @@ foi removido em 2026-06-26 pois retornava HTTP 404 consistentemente.
 Utiliza feedparser para parsing de RSS e trafilatura para extrair
 texto limpo do corpo completo dos artigos (fallback para summary).
 """
-import asyncio
-from datetime import datetime, timezone
+
 from typing import Optional
 
 import feedparser
@@ -64,9 +63,7 @@ class WebRSSCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    async def _fetch_feed(
-        self, client: httpx.AsyncClient, feed_cfg: dict
-    ) -> list[RawFinding]:
+    async def _fetch_feed(self, client: httpx.AsyncClient, feed_cfg: dict) -> list[RawFinding]:
         """
         Busca e parseia um único feed RSS.
 

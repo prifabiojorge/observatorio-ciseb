@@ -74,9 +74,7 @@ class YouTubeCollector(BaseCollector):
                 try:
                     items = await self._search(client, query)
                     findings.extend(items)
-                    print(
-                        f"[youtube] Query '{query}' → {len(items)} vídeos"
-                    )
+                    print(f"[youtube] Query '{query}' → {len(items)} vídeos")
                 except Exception as exc:
                     print(f"[youtube] Erro na query '{query}': {exc}")
         return findings
@@ -85,9 +83,7 @@ class YouTubeCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    async def _search(
-        self, client: httpx.AsyncClient, query: str
-    ) -> list[RawFinding]:
+    async def _search(self, client: httpx.AsyncClient, query: str) -> list[RawFinding]:
         """
         Busca vídeos via Invidious API com fallback entre instâncias.
 
@@ -108,19 +104,11 @@ class YouTubeCollector(BaseCollector):
         """
         for instance in INVIDIOUS_INSTANCES:
             try:
-                url = (
-                    f"{instance}/api/v1/search"
-                    f"?q={quote_plus(query)}"
-                    f"&type=video"
-                    f"&sort=relevance"
-                )
+                url = f"{instance}/api/v1/search?q={quote_plus(query)}&type=video&sort=relevance"
                 response = await client.get(url)
 
                 if response.status_code != 200:
-                    print(
-                        f"[youtube] Invidious {instance} "
-                        f"status {response.status_code}"
-                    )
+                    print(f"[youtube] Invidious {instance} status {response.status_code}")
                     continue  # Tenta próxima instância
 
                 data = response.json()
@@ -140,15 +128,10 @@ class YouTubeCollector(BaseCollector):
 
                     finding = RawFinding(
                         source_slug="youtube",
-                        source_url=(
-                            f"https://youtube.com/watch?v={video_id}"
-                        ),
+                        source_url=(f"https://youtube.com/watch?v={video_id}"),
                         title=f"[YouTube] {title}",
                         raw_text=(
-                            f"Vídeo: {title}. "
-                            f"Canal: {author}. "
-                            f"Duração: {duration}s. "
-                            f"{description}"
+                            f"Vídeo: {title}. Canal: {author}. Duração: {duration}s. {description}"
                         ),
                         language="pt",
                         metadata={
@@ -163,9 +146,7 @@ class YouTubeCollector(BaseCollector):
                 return items  # Sucesso — não tenta outras instâncias
 
             except Exception as exc:
-                print(
-                    f"[youtube] Erro Invidious {instance}: {exc}"
-                )
+                print(f"[youtube] Erro Invidious {instance}: {exc}")
                 continue  # Tenta próxima instância
 
         # Nenhuma instância respondeu com sucesso

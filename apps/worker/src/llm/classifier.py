@@ -1,7 +1,9 @@
 """Classificação multi-rótulo CISEB + enriquecimento + scoring."""
+
 import json
 import logging
 from datetime import datetime, timezone
+
 from llm.deepseek import chat
 
 log = logging.getLogger(__name__)
@@ -44,6 +46,7 @@ Retorne o JSON:"""
 
 VALID_PILLARS = {"ia", "maker", "digital", "tech_art", "fabrication", "robotics"}
 
+
 async def enrich(finding: dict) -> dict | None:
     text = (finding.get("content_text") or "")[:4000]
     if len(text) < 50:
@@ -63,12 +66,17 @@ async def enrich(finding: dict) -> dict | None:
         return None
     if "pillars" not in data or not isinstance(data["pillars"], list):
         return None
-    valid_pillars = [p for p in data["pillars"] if p.get("slug") in VALID_PILLARS and isinstance(p.get("confidence"), (int, float))]
+    valid_pillars = [
+        p
+        for p in data["pillars"]
+        if p.get("slug") in VALID_PILLARS and isinstance(p.get("confidence"), (int, float))
+    ]
     if not any(p.get("confidence", 0) >= 0.55 for p in valid_pillars):
         log.info(f"nenhum pilar ≥ 0.55 para {finding.get('id', '?')}")
         return None
     data["pillars"] = valid_pillars
     return data
+
 
 def compute_score(enriched: dict, finding: dict | None = None) -> dict:
     pillars = enriched.get("pillars", [])
@@ -82,9 +90,27 @@ def compute_score(enriched: dict, finding: dict | None = None) -> dict:
     dim_pra = 100 if enriched.get("practical_project") else 40
     dim_lvl = 80 if enriched.get("audience") else 50
     dim_nov = enriched.get("_dim_novelty", 70)
-    score = int(round(dim_alignment * 0.30 + dim_br * 0.20 + dim_rep * 0.20 + dim_pra * 0.15 + dim_lvl * 0.10 + dim_nov * 0.05))
+    score = int(
+        round(
+            dim_alignment * 0.30
+            + dim_br * 0.20
+            + dim_rep * 0.20
+            + dim_pra * 0.15
+            + dim_lvl * 0.10
+            + dim_nov * 0.05
+        )
+    )
     score = max(0, min(100, score))
-    return {"dim_alignment": dim_alignment, "dim_br_luso": dim_br, "dim_replicable": dim_rep, "dim_practical": dim_pra, "dim_level": dim_lvl, "dim_novelty": dim_nov, "score_composite": score}
+    return {
+        "dim_alignment": dim_alignment,
+        "dim_br_luso": dim_br,
+        "dim_replicable": dim_rep,
+        "dim_practical": dim_pra,
+        "dim_level": dim_lvl,
+        "dim_novelty": dim_nov,
+        "score_composite": score,
+    }
+
 
 def novelty_score(collected_at_iso: str) -> int:
     try:
@@ -93,7 +119,10 @@ def novelty_score(collected_at_iso: str) -> int:
         return 50
     now = datetime.now(timezone.utc)
     days = (now - collected).days
-    if days <= 7: return 100
-    if days <= 30: return 80
-    if days <= 90: return 50
+    if days <= 7:
+        return 100
+    if days <= 30:
+        return 80
+    if days <= 90:
+        return 50
     return 30

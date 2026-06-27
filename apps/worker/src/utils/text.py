@@ -68,10 +68,11 @@ def clean(text: str) -> str:
     normaliza quebras de linha. Usado antes de inserir no banco.
     """
     import re
+
     if not text:
         return ""
     # Remove caracteres de controle (exceto \n, \t)
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
     # Normaliza espaços
     text = " ".join(text.split())
     return text.strip()
@@ -90,6 +91,6 @@ def snippet(text: str, max_chars: int = 200) -> str:
     # Tenta quebrar no ponto final mais próximo
     cut = text[:max_chars].rfind(".")
     if cut > max_chars // 2:
-        return text[:cut + 1]
+        return text[: cut + 1]
     # Fallback: quebra no espaço
     return text[:max_chars].rsplit(" ", 1)[0] + "..."

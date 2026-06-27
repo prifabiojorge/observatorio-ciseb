@@ -2,10 +2,10 @@
 Coletor base abstrato — interface comum para todos os coletores.
 Cada coletor implementa collect() e retorna lista de RawFinding.
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
 
 @dataclass
@@ -14,6 +14,7 @@ class RawFinding:
     Achado bruto antes da inserção no banco.
     Representa o contrato de evento definido em memoria/06_CONTRATOS_E_SCHEMAS.md.
     """
+
     source_slug: str
     source_url: str
     title: str
@@ -27,7 +28,7 @@ class BaseCollector(ABC):
     """
     Coletor abstrato. Subclasses devem implementar:
     - collect() -> list[RawFinding]
-    
+
     Opcionalmente:
     - source_slug: str (identificador único da fonte)
     - source_name: str (nome legível da fonte)
@@ -56,7 +57,7 @@ class BaseCollector(ABC):
     async def collect(self) -> list[RawFinding]:
         """
         Coleta achados da fonte.
-        
+
         Returns:
             Lista de RawFinding para inserção no banco.
         """

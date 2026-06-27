@@ -14,8 +14,9 @@ Uso:
     from sentry_init import init_sentry
     init_sentry()  # chamar no topo de api.py e main.py
 """
-import os
+
 import logging
+import os
 
 log = logging.getLogger(__name__)
 
@@ -51,26 +52,21 @@ def init_sentry() -> None:
             dsn=dsn,
             environment=os.environ.get("APP_ENV", "production"),
             release=f"observatorio-worker@{os.environ.get('RENDER_SERVICE_ID', 'dev')}",
-
             # Sampling: 100% erros, 20% transactions (para performance monitoring)
             traces_sample_rate=0.2,
-
             # Integrar com logging Python (captura log.error e log.critical)
             integrations=[
                 FastApiIntegration(),
                 LoggingIntegration(
-                    level=logging.INFO,        # captura INFO+ como breadcrumbs
+                    level=logging.INFO,  # captura INFO+ como breadcrumbs
                     event_level=logging.ERROR,  # captura ERROR+ como eventos
                 ),
                 ThreadingIntegration(propagate_hub=True),
             ],
-
             # Não enviar PII (LGPD)
             send_default_pii=False,
-
             # Antes de enviar evento, filtra ruído
             before_send=_filter_event,
-
             # Não falhar se DSN estiver inválido
             before_send_transaction=None,
         )
@@ -109,6 +105,7 @@ def capture_exception(error: Exception, **kwargs) -> None:
     """
     try:
         import sentry_sdk
+
         sentry_sdk.capture_exception(error, **kwargs)
     except ImportError:
         log.error(f"[sentry] (não capturado) {error}")

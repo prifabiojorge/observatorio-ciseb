@@ -11,9 +11,11 @@ Adicionado:
 - Log estruturado para Sentry rastrear falhas
 - Validação de dimensão antes de salvar (evita corromper pilares)
 """
+
 import asyncio
-import os
 import logging
+import os
+
 import httpx
 
 log = logging.getLogger(__name__)
@@ -113,6 +115,7 @@ async def embed_text(text: str) -> list[float]:
     # Esgotou retries — capturar no Sentry e retornar vetor zero
     try:
         from sentry_init import capture_exception
+
         capture_exception(
             last_error or RuntimeError("HF API falhou após retries"),
             tags={"component": "embeddings", "model": "bge-m3"},
@@ -155,6 +158,7 @@ async def embed_pillars() -> None:
     (antes salvava, corrompendo o pilar). Agora loga erro e segue.
     """
     from db.supabase import get_supabase
+
     supabase = get_supabase()
     pillars = supabase.table("pillars").select("*").execute().data
 
@@ -168,9 +172,9 @@ async def embed_pillars() -> None:
 
         # Fase 7 fix: validar que vetor não é zero antes de salvar
         if vec and any(v != 0.0 for v in vec):
-            supabase.table("pillars").update(
-                {"canonical_embedding": vec}
-            ).eq("id", p["id"]).execute()
+            supabase.table("pillars").update({"canonical_embedding": vec}).eq(
+                "id", p["id"]
+            ).execute()
             log.info(f"[ok] pilar {p['slug']} embedado")
         else:
             log.error(
@@ -179,6 +183,7 @@ async def embed_pillars() -> None:
             # Capturar no Sentry para diagnóstico
             try:
                 from sentry_init import capture_exception
+
                 capture_exception(
                     RuntimeError(f"Pilar {p['slug']} ficou sem embedding"),
                     tags={"component": "embed_pillars", "pillar": p["slug"]},
