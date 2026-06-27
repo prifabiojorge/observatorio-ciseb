@@ -12,10 +12,10 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 4 concluída — CHECKPOINT F4.1 ATINGIDO |
-| **Último checkpoint** | F4.1 — ✅ COMPLETO (dashboard, alertas, digest) |
-| **Próximo passo** | Fase 5 — Operação Contínua + Loops de Aprendizado (ou manter MVP) |
-| **Bloqueadores** | Nenhum |
+| **Fase atual** | Fase 5 em andamento (4/8 concluídas) |
+| **Último checkpoint** | F5.4 — ✅ Supabase Auth configurado |
+| **Próximo passo** | F5.5 — Configurar env vars Render/Vercel/GitHub |
+| **Bloqueadores** | Nenhum (fases restantes requerem ações manuais nos dashboards) |
 
 ---
 
@@ -116,6 +116,21 @@
 [2026-06-27 01:48] [ORQUESTRADOR] 🎉 CHECKPOINT F4.1 ATINGIDO: 4/4 critérios.
 ```
 
+### 2026-06-27 — Fase 5: Produção (em andamento)
+
+```
+[2026-06-27 09:00] [ORQUESTRADOR] Fase 5 iniciada — Plano de Execução lido (1262 linhas, 8 fases).
+[2026-06-27 09:09] [HARNESS] F5.1: Ambiente verificado (git 2.49, python 3.12, node 24, npm 11).
+[2026-06-27 09:09] [HARNESS] F5.2: 45 arquivos CRLF→LF. .gitattributes criado. repomix-output.xml removido.
+[2026-06-27 09:14] [HARNESS] F5.3: Patch segurança aplicado (2 commits). 40/40 testes passando.
+[2026-06-27 09:14] [HARNESS] F5.3: CHECKPOINT F3.1 — CRON_SECRET fail-closed, fallback removido.
+[2026-06-27 09:16] [HARNESS] F5.3: Correção extra — api.py verifica CRON_SECRET antes de import main.
+[2026-06-27 09:35] [GUARDIÃO] F5.4: Usuário Fábio criado no Supabase Auth (UID 405bcf21).
+[2026-06-27 09:37] [ARQUITETO] F5.4: 004_rls_auth.sql aplicado com UID real.
+[2026-06-27 09:44] [GUARDIÃO] F5.4: URLs de redirect configuradas (Vercel prod + localhost).
+[2026-06-27 09:44] [ORQUESTRADOR] F5.4: CHECKPOINT F4.1 ATINGIDO — Supabase Auth funcional.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -179,5 +194,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-27T01:48:00-03:00
-> **Próxima ação**: Iniciar Fase 5 — Operação Contínua + Loops de Aprendizado (ou manter MVP)
+> **Última atualização**: 2026-06-27T09:44:00-03:00
+> **Próxima ação**: F5.5 — Configurar env vars Render/Vercel/GitHub

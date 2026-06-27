@@ -68,5 +68,5 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 
 ---
 
-> **Última atualização**: 2026-06-27T01:48:00-03:00
-> **Atualizado por**: Orquestrador (CHECKPOINT F4.1 — Fase 4 concluída)
+> **Última atualização**: 2026-06-27T09:44:00-03:00
+> **Atualizado por**: Orquestrador (CHECKPOINT F5.4 — Supabase Auth configurado, Fase 5 em andamento 4/8)

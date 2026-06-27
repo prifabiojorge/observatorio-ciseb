@@ -1,17 +1,20 @@
 "use client";
 
 /**
- * Dashboard de Revisão Humana — Observatório CISEB (Fase 4)
- * 
+ * Dashboard de Revisão Humana — Observatório CISEB (Fase 5)
+ *
  * Exibe os top 10 findings pendentes de revisão (status "scored"),
  * com scores por pilar e botões de aprovar/rejeitar.
- * 
- * Client-side rendering com chamadas fetch às API routes.
- * 
+ *
+ * 🔒 AUTENTICAÇÃO via Supabase Auth (cookie httpOnly).
+ *    O middleware.ts bloqueia acesso não autenticado antes de chegar aqui.
+ *    As chamadas fetch incluem cookies automaticamente (same-origin).
+ *
  * Rota: /dashboard
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase-browser";
 
 // ─── Tipos ────────────────────────────────────────────────────────
 
@@ -66,7 +69,16 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(API_PENDING);
+            // Cookies httpOnly do Supabase Auth são enviados automaticamente
+            // (same-origin fetch). Sem necessidade de header Authorization.
+            const res = await fetch(API_PENDING, {
+                credentials: "same-origin",
+            });
+            if (res.status === 401) {
+                // Sessão expirada — redireciona para login
+                window.location.href = `/login?redirect=${encodeURIComponent("/dashboard")}`;
+                return;
+            }
             if (!res.ok) {
                 const text = await res.text();
                 throw new Error(text || `HTTP ${res.status}`);
@@ -91,9 +103,14 @@ export default function DashboardPage() {
             const res = await fetch(API_DECIDE, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
                 body: JSON.stringify({ id, decision }),
             });
 
+            if (res.status === 401) {
+                window.location.href = `/login?redirect=${encodeURIComponent("/dashboard")}`;
+                return;
+            }
             if (!res.ok) {
                 const text = await res.text();
                 throw new Error(text || `HTTP ${res.status}`);
@@ -110,6 +127,13 @@ export default function DashboardPage() {
                 type: "error",
             });
         }
+    }, []);
+
+    // ── Logout ─────────────────────────────────────────────────────
+    const handleLogout = useCallback(async () => {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        window.location.href = "/login";
     }, []);
 
     // ── Render: Estados de loading / erro ───────────────────────────
@@ -140,11 +164,18 @@ export default function DashboardPage() {
     return (
         <div style={styles.pageWrapper}>
             <div style={styles.header}>
-                <h1 style={styles.title}>📋 Observatório CISEB — Revisão</h1>
-                <p style={styles.subtitle}>
-                    {findings.length} achado{findings.length !== 1 ? "s" : ""} pendente
-                    {findings.length !== 1 ? "s" : ""} de revisão
-                </p>
+                <div style={styles.headerRow}>
+                    <div>
+                        <h1 style={styles.title}>📋 Observatório CISEB — Revisão</h1>
+                        <p style={styles.subtitle}>
+                            {findings.length} achado{findings.length !== 1 ? "s" : ""} pendente
+                            {findings.length !== 1 ? "s" : ""} de revisão
+                        </p>
+                    </div>
+                    <button onClick={handleLogout} style={styles.logoutButton} aria-label="Sair">
+                        🚪 Sair
+                    </button>
+                </div>
             </div>
 
             {/* Feedback de ação */}
@@ -198,18 +229,23 @@ function FindingCard({ finding, onDecide }: FindingCardProps) {
             {/* Scores badges */}
             {scores.length > 0 && (
                 <div style={styles.badgeRow}>
-                    {scores.map((s, i) => (
-                        <span
-                            key={i}
-                            style={{
-                                ...styles.badge,
-                                background: s.score_composite >= 75 ? "#d4edda" : "#e2e3e5",
-                            }}
-                            title={`Pilar ${s.pillar_id}: confiança ${(s.confidence * 100).toFixed(0)}%`}
-                        >
-                            🏷️ {s.score_composite}/100
-                        </span>
-                    ))}
+                    {scores.map((s, i) => {
+                        // pillar_id é UUID; exibimos os 8 primeiros chars como fallback visual.
+                        // Em Fase 5+: fazer JOIN com pillars para obter o slug legível.
+                        const pillarLabel = s.pillar_id ? s.pillar_id.slice(0, 8) : "?";
+                        return (
+                            <span
+                                key={i}
+                                style={{
+                                    ...styles.badge,
+                                    background: s.score_composite >= 75 ? "#d4edda" : "#e2e3e5",
+                                }}
+                                title={`Pilar ${s.pillar_id}: confiança ${(s.confidence * 100).toFixed(0)}%`}
+                            >
+                                🏷️ {pillarLabel} · {s.score_composite}/100
+                            </span>
+                        );
+                    })}
                 </div>
             )}
 
@@ -264,6 +300,12 @@ const styles: Record<string, React.CSSProperties> = {
     header: {
         marginBottom: 20,
     },
+    headerRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: 12,
+    },
     title: {
         fontSize: 24,
         fontWeight: 700,
@@ -273,6 +315,17 @@ const styles: Record<string, React.CSSProperties> = {
         color: "#666",
         fontSize: 14,
         margin: 0,
+    },
+    logoutButton: {
+        padding: "6px 14px",
+        background: "#6c757d",
+        color: "#fff",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+        fontSize: 13,
+        fontWeight: 500,
+        whiteSpace: "nowrap",
     },
     feedbackBanner: {
         padding: "12px 16px",

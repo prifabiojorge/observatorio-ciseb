@@ -1,7 +1,8 @@
 name: CI
 on: [push, pull_request]
+
 jobs:
-  lint:
+  lint-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -10,3 +11,51 @@ jobs:
           python-version: '3.11'
       - run: pip install ruff
       - run: ruff check apps/worker/
+
+  test-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('apps/worker/pyproject.toml') }}
+          restore-keys: ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pytest-asyncio
+      - name: Run tests
+        env:
+          # Variáveis mínimas para os testes (não conectam a serviços reais)
+          CRON_SECRET: ci-test-secret
+          SUPABASE_URL: https://fake.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: fake-service-role
+          TELEGRAM_BOT_TOKEN: fake-token
+          TELEGRAM_CHAT_ID_FABIO: fake-chat-id
+        run: PYTHONPATH=src python -m pytest tests/ -v --tb=short
+
+  lint-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: TypeScript check
+        run: npx tsc --noEmit
