@@ -105,11 +105,7 @@ class GitHubCollector(BaseCollector):
                     source_url=repo.get("html_url", ""),
                     title=repo.get("full_name", ""),
                     raw_text=repo.get("description") or "",
-                    language=(
-                        "pt"
-                        if "pt" in (repo.get("language") or "").lower()
-                        else "en"
-                    ),
+                    language="pt",  # Idioma do conteúdo assumido pt-BR para tópicos educacionais brasileiros
                     metadata={
                         "topic": topic,
                         "stars": repo.get("stargazers_count", 0),

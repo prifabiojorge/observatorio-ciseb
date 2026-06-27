@@ -54,9 +54,10 @@ async def send_alert(
     score: int,
     pillar: str,
     source_url: str,
+    application_suggestion: str = "",
 ) -> dict:
     """
-    Envia alerta formatado de finding com score alto.
+    Envia alerta formatado de finding com score alto e sugestão de aplicação.
 
     Template conforme contrato em memoria/06_CONTRATOS_E_SCHEMAS.md,
     seção 3 — Contrato de card Telegram.
@@ -67,6 +68,7 @@ async def send_alert(
         score: Score composto (0-100).
         pillar: Slug do pilar (ex: 'ia', 'robotics').
         source_url: URL de origem do achado.
+        application_suggestion: Sugestão de aplicação prática (opcional).
 
     Returns:
         Resposta JSON da API do Telegram.
@@ -80,6 +82,8 @@ async def send_alert(
         f"<b>{title}</b>\n\n"
         f"📁 {pillar} ({score})\n\n"
         f"📝 {summary}\n\n"
-        f"🔗 {source_url}"
     )
+    if application_suggestion:
+        text += f"💡 <i>Aplicação:</i> {application_suggestion}\n\n"
+    text += f"🔗 {source_url}"
     return await send_message(text)

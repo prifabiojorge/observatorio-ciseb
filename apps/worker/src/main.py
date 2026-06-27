@@ -2,11 +2,15 @@
 Observatório CISEB — Worker Principal.
 Fase 2: Orquestrador de coleta — executa os 6 coletores e persiste no Supabase.
 
-Execução: python src/main.py  (ou via api.py: POST /run)
+Execução:
+  python src/main.py                   # pipeline completo (coleta + enriquecimento)
+  python src/main.py --collect-only    # apenas coleta
+  python src/main.py --enrich-only     # apenas enriquecimento
 """
 import asyncio
 import os
 import sys
+import sys as _sys
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -203,54 +207,45 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
 # ─── Entry Point ─────────────────────────────────────────
 
 async def main():
-    """
-    Orquestrador principal.
-    Executa todos os coletores em paralelo e imprime estatísticas.
-    """
-    print("[main] ═══════════════════════════════════════════")
-    print(f"[main] Observatório CISEB — Coleta Fase 2")
-    print(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    print("[main] ═══════════════════════════════════════════")
-    print(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
-
-    # Diagnóstico de ambiente (não expõe valores, só verifica presença)
+    """Orquestrador principal."""
     import os as _os
+    
+    # ── Diagnóstico ─────────────────────────────────────
     _hf = "✅" if _os.environ.get("HF_API_KEY") else "❌"
     _ds = "✅" if _os.environ.get("DEEPSEEK_API_KEY") else "❌"
-    print(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds}")
-
-    print()
+    phase = "coleta" if "--collect-only" in _sys.argv else ("enrich" if "--enrich-only" in _sys.argv else "full")
     
-    # Executa todos os coletores em paralelo
-    results = await asyncio.gather(
-        *[run_collector(c) for c in ALL_COLLECTORS],
-        return_exceptions=False
-    )
-    
-    # ─── Estatísticas ──────────────────────────────────
-    total_collected = sum(r[1] for r in results)
-    total_inserted = sum(r[2] for r in results)
-    duplicates = total_collected - total_inserted
-    
-    print()
     print("[main] ═══════════════════════════════════════════")
-    print("[main] 📊 RESUMO DA COLETA")
+    print(f"[main] Observatório CISEB — Fase {'Coleta' if phase != 'enrich' else 'Enriquecimento'}")
+    print(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print("[main] ═══════════════════════════════════════════")
-    for name, collected, inserted in results:
-        dup = collected - inserted
-        print(f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados")
-    print("[main] ───────────────────────────────────────────")
-    print(f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados")
-    print("[main] ═══════════════════════════════════════════")
+    print(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds} | Modo: {phase}")
     
-    # Verifica se atingiu CHECKPOINT F2.1
-    if total_inserted >= 50:
-        print("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
-    else:
-        print(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
+    # ── Coleta ─────────────────────────────────────────
+    if phase in ("coleta", "full"):
+        print(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
+        results = await asyncio.gather(*[run_collector(c) for c in ALL_COLLECTORS], return_exceptions=False)
+        total_collected = sum(r[1] for r in results)
+        total_inserted = sum(r[2] for r in results)
+        duplicates = total_collected - total_inserted
+        
+        print()
+        print("[main] ═══════════════════════════════════════════")
+        print("[main] 📊 RESUMO DA COLETA")
+        print("[main] ═══════════════════════════════════════════")
+        for name, collected, inserted in results:
+            dup = collected - inserted
+            print(f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados")
+        print("[main] ───────────────────────────────────────────")
+        print(f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados")
+        print("[main] ═══════════════════════════════════════════")
+        if total_inserted >= 50:
+            print("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
+        else:
+            print(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
     
-    # ─── Fase 3: Enriquecimento + Scoring ──────────────────
-    if total_inserted > 0:
+    # ── Enriquecimento ─────────────────────────────────
+    if phase in ("enrich", "full"):
         print()
         print("[main] ═══════════════════════════════════════════")
         print("[main] 🔬 FASE 3 — ENRIQUECIMENTO + SCORING")
@@ -260,8 +255,6 @@ async def main():
             print("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
         else:
             print(f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1")
-    else:
-        print("[main] Nenhum finding novo — pulando enriquecimento.")
     
     return 0
 

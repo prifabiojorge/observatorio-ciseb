@@ -50,7 +50,7 @@ dev = ["pytest==8.2.2", "pytest-cov==5.0.0", "ruff==0.5.0"]
 
 ```bash
 # Supabase
-SUPABASE_URL=https://yefudgudlpjctmdjkkio.supabase.co
+SUPABASE_URL=https://[PROTEGIDO].supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJxxxxx          # APENAS no Render
 SUPABASE_ANON_KEY=eyJxxxxx                  # Vercel + Render
 
@@ -64,7 +64,7 @@ HF_API_KEY=hf_xxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Telegram
 # TELEGRAM_BOT_TOKEN=8705525357:AAF-... (ofuscado)
-# TELEGRAM_CHAT_ID_FABIO=1158904776
+# TELEGRAM_CHAT_ID_FABIO=[PROTEGIDO]
 
 # Resend
 RESEND_API_KEY=re_xxxxx
@@ -77,8 +77,8 @@ NEWSLETTER_SCHEDULE=0 7 * * 1-5
 TOPN_DAILY=10
 
 # Render
-# RENDER_SERVICE_ID=srv-d8usrhurnols73flq750
-# RENDER_DEPLOY_URL=https://observatorio-ciseb.onrender.com
+# RENDER_SERVICE_ID=[PROTEGIDO]
+# RENDER_DEPLOY_URL=[PROTEGIDO]
 ```
 
 > ⚠️ **NUNCA** commitar `.env`. O `.env.example` com valores fake é commitado.

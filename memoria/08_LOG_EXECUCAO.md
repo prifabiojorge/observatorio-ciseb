@@ -44,7 +44,7 @@
 [2026-06-25 ~22:00] [ORQUESTRADOR] Render: deploy pendente (repo vazio) — normal, Fase 1 resolverá.
 [2026-06-25 ~22:15] [ORQUESTRADOR] S5: RLS confirmado como falso positivo — migrações SQL explícitas cobrem.
 [2026-06-25 ~22:15] [ORQUESTRADOR] S6: DeepSeek — crédito US$ 5 confirmado pelo prof. Fábio.
-[2026-06-25 ~22:15] [ORQUESTRADOR] S6: Telegram Bot criado — token 8705525357:AAF-..., chat_id 1158904776 (Fabio Fabuloso).
+[2026-06-25 ~22:15] [ORQUESTRADOR] S6: Telegram Bot criado — token 8705525357:AAF-..., chat_id [PROTEGIDO].
 [2026-06-25 ~22:15] [ORQUESTRADOR] 🎉 CHECKPOINT F0.1 COMPLETO — 6/6 contas. Fase 1 autorizada.
 ```
 
@@ -108,9 +108,9 @@
 | GitHub | [x] | [x] | prifabiojorge/observatorio-ciseb — público, vazio |
 | Supabase | [x] | [x] | yefudgudlpjctmdjkkio.supabase.co — Ohio (us-east-2), aceito pelo prof. |
 | Vercel | [x] | [x] | observatorio-ciseb — Hobby, framework "Other" |
-| Render | [x] | [x] | Python 3, Free tier — srv-d8usrhurnols73flq750 — https://observatorio-ciseb.onrender.com |
+| Render | [x] | [x] | Python 3, Free tier — [PROTEGIDO] — [PROTEGIDO] |
 | DeepSeek | [x] | [x] | Crédito US$ 5 confirmado |
-| Telegram Bot | [x] | [x] | Token 8705525357:AAF-... · chat_id 1158904776 · @Fabio Fabuloso |
+| Telegram Bot | [x] | [x] | Token [PROTEGIDO] · chat_id [PROTEGIDO] · @Fabio Fabuloso |
 
 ---
 
@@ -135,7 +135,7 @@
 | 3 | 2026-06-25 | Render configurado como Elixir/Starter $7 | Recriado como Python 3 + Free tier | ✅ Resolvido |
 | 4 | 2026-06-25 | RLS automática desabilitada | Falso positivo: migração 003_rls.sql habilita explicitamente | ✅ Resolvido |
 | 5 | 2026-06-25 | DeepSeek não verificado | Crédito US$ 5 confirmado pelo prof. Fábio | ✅ Resolvido |
-| 6 | 2026-06-25 | Telegram Bot não verificado | Bot criado: token 8705525357:AAF-..., chat_id 1158904776 | ✅ Resolvido |
+| 6 | 2026-06-25 | Telegram Bot não verificado | Bot criado: token [PROTEGIDO], chat_id [PROTEGIDO] | ✅ Resolvido |
 
 ---
 
