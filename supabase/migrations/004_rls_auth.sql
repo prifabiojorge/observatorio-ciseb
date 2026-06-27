@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS app_config (
 
 -- Insere o UUID do Fábio (substituir pelo valor real)
 INSERT INTO app_config (key, value) VALUES
-    ('reviewer_auth_uid', '<FABIO_AUTH_UID>')
+    ('reviewer_auth_uid', '405bcf21-61d9-4945-94c3-a3345319d6dc')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Habilita RLS em app_config (qualquer um pode ler a chave, mas só service_role pode escrever)
