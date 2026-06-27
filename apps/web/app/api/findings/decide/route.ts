@@ -8,6 +8,10 @@
  *    RLS policy "reviewer_insert_reviews" e "reviewer_update_findings_status"
  *    permitem escrita apenas se is_reviewer() = true.
  *
+ * 🔍 OBSERVABILIDADE (Fase 7): erros capturados via Sentry.
+ *    Estado inconsistente (review inserida mas findings.status falhou)
+ *    agora é reportado ao Sentry em vez de apenas console.error.
+ *
  * ⚠️ Não usa mais SERVICE_ROLE_KEY nem CRON_SECRET.
  *
  * POST /api/findings/decide
@@ -24,6 +28,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClientFromCookies } from "@/lib/supabase-server";
 
 // Regex UUID v4 — defesa em profundidade contra injeção.
@@ -94,14 +99,23 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             // ⚠️ Estado inconsistente: review inserida mas findings.status não atualizado.
-            // R3 (auditoria Harness 2026-06-27): logar SEMPRE, em produção e dev.
-            // Sem Sentry configurado ainda — console.error é o canal de observabilidade.
-            // Quando Sentry for adicionado (Fase 6), substituir por Sentry.captureException.
+            // Fase 7 (auditoria Harness 2026-06-27): reportar ao Sentry + console.error.
+            // Sentry captura para alerta em produção; console.error mantém log local.
             // eslint-disable-next-line no-console
             console.error(
                 `[decide] Estado inconsistente: review inserida para ${id} ` +
                 `mas findings.status não atualizado: ${updateError.message}`
             );
+            Sentry.captureException(new Error("Estado inconsistente em decide"), {
+                tags: { component: "api/findings/decide", severity: "high" },
+                extra: {
+                    finding_id: id,
+                    decision,
+                    reviewer_id: reviewerId,
+                    review_error: updateError.message,
+                    // review já foi inserida — estado órfão no banco
+                },
+            });
             return NextResponse.json(
                 { error: "Review inserted but finding status update failed", id },
                 { status: 500 }
@@ -110,6 +124,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ ok: true, id, decision, newStatus });
     } catch (error) {
+        // Fase 7: capturar erros não tratados no Sentry
+        Sentry.captureException(error, {
+            tags: { component: "api/findings/decide" },
+        });
         return NextResponse.json(
             { error: "Invalid request", details: String(error) },
             { status: 400 }
