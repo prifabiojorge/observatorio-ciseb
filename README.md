@@ -31,3 +31,4 @@ supabase/
 └── migrations/   # SQL migrations
 memoria/          # Documentação e memória da IA
 ```
+ 
