@@ -1,11 +1,14 @@
 """Cliente DeepSeek — compatível com OpenAI SDK. Lazy init."""
-import os
+
 import logging
+import os
+
 from openai import AsyncOpenAI
 
 log = logging.getLogger(__name__)
 
 _client: AsyncOpenAI | None = None
+
 
 def _get_client() -> AsyncOpenAI:
     global _client
@@ -20,15 +23,23 @@ def _get_client() -> AsyncOpenAI:
         )
     return _client
 
+
 _MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
-async def chat(system: str, user: str, temperature: float = 0.2, max_tokens: int = 800) -> str | None:
+
+async def chat(
+    system: str, user: str, temperature: float = 0.2, max_tokens: int = 800
+) -> str | None:
     try:
         client = _get_client()
         response = await client.chat.completions.create(
             model=_MODEL,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            temperature=temperature, max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:

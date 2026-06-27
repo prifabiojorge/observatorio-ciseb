@@ -7,6 +7,7 @@ Execução:
   python src/main.py --collect-only    # apenas coleta
   python src/main.py --enrich-only     # apenas enriquecimento
 """
+
 import asyncio
 import logging
 import os
@@ -21,8 +22,8 @@ log = logging.getLogger(__name__)
 # 7.4 — Configuração de logging estruturado
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 from dotenv import load_dotenv
@@ -32,14 +33,19 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"))
 
 # ─── Imports internos ────────────────────────────────────
 from collectors.base import RawFinding
-from collectors.web_rss import WebRSSCollector
-from collectors.github import GitHubCollector
-from collectors.youtube import YouTubeCollector
-from collectors.scholar import ScholarCollector
-from collectors.forums import ForumsCollector
 from collectors.events import EventsCollector
+from collectors.forums import ForumsCollector
+from collectors.github import GitHubCollector
+from collectors.scholar import ScholarCollector
+from collectors.web_rss import WebRSSCollector
+from collectors.youtube import YouTubeCollector
+from db.queries import (
+    ensure_source,
+    finding_exists,
+    insert_finding,
+    update_source_polled,
+)
 from db.supabase import get_supabase
-from db.queries import ensure_source, finding_exists, insert_finding, update_source_polled
 from delivery.telegram import send_alert
 from utils.hashing import content_hash
 from utils.text import clean, snippet
@@ -57,6 +63,7 @@ ALL_COLLECTORS = [
 
 # ─── Pipeline ────────────────────────────────────────────
 
+
 async def process_finding(
     finding: RawFinding,
     family: str = "web",
@@ -71,24 +78,22 @@ async def process_finding(
         family: Família da fonte (ex: 'web', 'github', 'social'), vinda do coletor.
         source_name: Nome legível da fonte, vindo do coletor.
     """
-    supabase = get_supabase()
-    
     # 1. Gerar hash de deduplicação
     text_for_hash = finding.raw_text or finding.title
     hash_val = content_hash(finding.source_url, finding.title, text_for_hash)
-    
+
     # 2. Verificar duplicata
     existing = finding_exists(hash_val)
     if existing:
         return None  # duplicado, pular silenciosamente
-    
+
     # 3. Garantir source (family e source_name recebidos do coletor)
     source_id = ensure_source(
         slug=finding.source_slug,
         name=source_name or finding.source_slug,
         family=family,
     )
-    
+
     # 4. Inserir finding
     finding_data = {
         "id": str(uuid.uuid4()),
@@ -103,13 +108,14 @@ async def process_finding(
         "status": "new",
         "metadata": finding.metadata,
     }
-    
+
     try:
         return insert_finding(finding_data)
     except Exception as e:
         # Fase 7: capturar no Sentry (não-quebra pipeline — só loga)
         try:
             from sentry_init import capture_exception
+
             capture_exception(e, tags={"component": "process_finding"})
         except ImportError:
             pass
@@ -127,18 +133,18 @@ async def run_collector(collector) -> tuple[str, int, int]:
         raw_findings = await collector.collect()
         total = len(raw_findings)
         inserted = 0
-        
+
         for finding in raw_findings:
             fid = await process_finding(finding, collector.family, collector.source_name)
             if fid:
                 inserted += 1
-        
+
         # Atualiza timestamp da fonte
         try:
             update_source_polled(collector.source_slug)
         except Exception:
             pass
-        
+
         return (name, total, inserted)
     except Exception as e:
         log.error(f"[main] Erro no coletor {name}: {e}")
@@ -149,6 +155,7 @@ async def run_collector(collector) -> tuple[str, int, int]:
 
 _pillar_id_cache: dict[str, str] = {}
 
+
 def _get_pillar_id_map() -> dict[str, str]:
     global _pillar_id_cache
     if not _pillar_id_cache:
@@ -157,9 +164,10 @@ def _get_pillar_id_map() -> dict[str, str]:
             _pillar_id_cache[p["slug"]] = p["id"]
     return _pillar_id_cache
 
+
 async def run_enrich_and_score(batch_size: int = 20) -> dict:
-    from llm.embeddings import embed_text, embed_pillars
-    from llm.classifier import enrich, compute_score, novelty_score
+    from llm.classifier import compute_score, enrich, novelty_score
+    from llm.embeddings import embed_pillars, embed_text
 
     stats = {"enriched": 0, "failed": 0, "scored_high": 0}
 
@@ -174,19 +182,30 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
     # têm prioridade (provável falha anterior de enrich). Se não há stale,
     # pega os mais recentes (comportamento original).
     from datetime import timedelta
+
     stale_threshold = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
 
     new_findings = (
-        supabase.table("findings").select("*").eq("status", "new")
+        supabase.table("findings")
+        .select("*")
+        .eq("status", "new")
         .lt("collected_at", stale_threshold)
-        .order("collected_at", desc=False).limit(batch_size).execute().data
+        .order("collected_at", desc=False)
+        .limit(batch_size)
+        .execute()
+        .data
     )
 
     if not new_findings:
         # Sem stale — pega os mais recentes (comportamento original)
         new_findings = (
-            supabase.table("findings").select("*").eq("status", "new")
-            .order("collected_at", desc=False).limit(batch_size).execute().data
+            supabase.table("findings")
+            .select("*")
+            .eq("status", "new")
+            .order("collected_at", desc=False)
+            .limit(batch_size)
+            .execute()
+            .data
         )
         log.info(f"[main] Enriquecendo {len(new_findings)} findings (sem stale >1h)...")
     else:
@@ -203,12 +222,14 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         enriched["_dim_novelty"] = novelty_score(f.get("collected_at", ""))
         sc = compute_score(enriched, f)
 
-        supabase.table("findings").update({
-            "embedding": vec,
-            "status": "scored",
-            "snippet": enriched.get("summary", f.get("snippet")),
-            "metadata": {**(f.get("metadata") or {}), "enriched": enriched},
-        }).eq("id", fid).execute()
+        supabase.table("findings").update(
+            {
+                "embedding": vec,
+                "status": "scored",
+                "snippet": enriched.get("summary", f.get("snippet")),
+                "metadata": {**(f.get("metadata") or {}), "enriched": enriched},
+            }
+        ).eq("id", fid).execute()
 
         pillar_map = _get_pillar_id_map()
         scores_rows = []
@@ -216,19 +237,24 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
             pid = pillar_map.get(p["slug"])
             if not pid:
                 continue
-            scores_rows.append({
-                "finding_id": fid, "pillar_id": pid,
-                "confidence": p["confidence"],
-                "score_composite": sc["score_composite"],
-                "dim_alignment": sc["dim_alignment"],
-                "dim_br_luso": sc["dim_br_luso"],
-                "dim_replicable": sc["dim_replicable"],
-                "dim_practical": sc["dim_practical"],
-                "dim_level": sc["dim_level"],
-                "dim_novelty": sc["dim_novelty"],
-            })
+            scores_rows.append(
+                {
+                    "finding_id": fid,
+                    "pillar_id": pid,
+                    "confidence": p["confidence"],
+                    "score_composite": sc["score_composite"],
+                    "dim_alignment": sc["dim_alignment"],
+                    "dim_br_luso": sc["dim_br_luso"],
+                    "dim_replicable": sc["dim_replicable"],
+                    "dim_practical": sc["dim_practical"],
+                    "dim_level": sc["dim_level"],
+                    "dim_novelty": sc["dim_novelty"],
+                }
+            )
         if scores_rows:
-            supabase.table("scores").upsert(scores_rows, on_conflict="finding_id,pillar_id").execute()
+            supabase.table("scores").upsert(
+                scores_rows, on_conflict="finding_id,pillar_id"
+            ).execute()
 
         stats["enriched"] += 1
         if sc["score_composite"] >= 75:
@@ -288,10 +314,7 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
     pillar_id_to_slug = {v: k for k, v in _get_pillar_id_map().items()}
 
     # Filtra apenas findings com score_composite ≥ 75 (threshold de alerta)
-    alert_candidates = [
-        f for f in scored_findings
-        if score_by_finding.get(f["id"], 0) >= 75
-    ]
+    alert_candidates = [f for f in scored_findings if score_by_finding.get(f["id"], 0) >= 75]
     # Ordena por score decrescente (prioriza alertas mais relevantes)
     alert_candidates.sort(
         key=lambda f: score_by_finding.get(f["id"], 0),
@@ -340,19 +363,20 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
             )
 
             # Registra a entrega para evitar reenvio
-            supabase.table("deliveries").insert({
-                "finding_id": fid,
-                "channel": "telegram",
-                "payload": {
-                    "score": best_score,
-                    "pillar": pillar_slug,
-                },
-            }).execute()
+            supabase.table("deliveries").insert(
+                {
+                    "finding_id": fid,
+                    "channel": "telegram",
+                    "payload": {
+                        "score": best_score,
+                        "pillar": pillar_slug,
+                    },
+                }
+            ).execute()
 
             alerts_sent += 1
             log.info(
-                f"[main] 📤 Alerta Telegram enviado: "
-                f"[{best_score}] {f_alert['title'][:50]}..."
+                f"[main] 📤 Alerta Telegram enviado: [{best_score}] {f_alert['title'][:50]}..."
             )
         except Exception as e:
             log.error(f"[main] Erro ao enviar alerta Telegram: {e}")
@@ -363,44 +387,57 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
 
 # ─── Entry Point ─────────────────────────────────────────
 
+
 async def main():
     """Orquestrador principal."""
     import os as _os
-    
+
     # ── Diagnóstico ─────────────────────────────────────
     _hf = "✅" if _os.environ.get("HF_API_KEY") else "❌"
     _ds = "✅" if _os.environ.get("DEEPSEEK_API_KEY") else "❌"
-    phase = "coleta" if "--collect-only" in _sys.argv else ("enrich" if "--enrich-only" in _sys.argv else "full")
-    
+    phase = (
+        "coleta"
+        if "--collect-only" in _sys.argv
+        else ("enrich" if "--enrich-only" in _sys.argv else "full")
+    )
+
     log.info("[main] ═══════════════════════════════════════════")
-    log.info(f"[main] Observatório CISEB — Fase {'Coleta' if phase != 'enrich' else 'Enriquecimento'}")
+    log.info(
+        f"[main] Observatório CISEB — Fase {'Coleta' if phase != 'enrich' else 'Enriquecimento'}"
+    )
     log.info(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     log.info("[main] ═══════════════════════════════════════════")
     log.info(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds} | Modo: {phase}")
-    
+
     # ── Coleta ─────────────────────────────────────────
     if phase in ("coleta", "full"):
         log.info(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
-        results = await asyncio.gather(*[run_collector(c) for c in ALL_COLLECTORS], return_exceptions=False)
+        results = await asyncio.gather(
+            *[run_collector(c) for c in ALL_COLLECTORS], return_exceptions=False
+        )
         total_collected = sum(r[1] for r in results)
         total_inserted = sum(r[2] for r in results)
         duplicates = total_collected - total_inserted
-        
+
         log.info("")
         log.info("[main] ═══════════════════════════════════════════")
         log.info("[main] 📊 RESUMO DA COLETA")
         log.info("[main] ═══════════════════════════════════════════")
         for name, collected, inserted in results:
             dup = collected - inserted
-            log.info(f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados")
+            log.info(
+                f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados"
+            )
         log.info("[main] ───────────────────────────────────────────")
-        log.info(f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados")
+        log.info(
+            f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados"
+        )
         log.info("[main] ═══════════════════════════════════════════")
         if total_inserted >= 50:
             log.info("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
         else:
             log.warning(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
-    
+
     # ── Enriquecimento ─────────────────────────────────
     if phase in ("enrich", "full"):
         log.info("")
@@ -411,8 +448,10 @@ async def main():
         if enrich_stats["enriched"] >= 20:
             log.info("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
         else:
-            log.warning(f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1")
-    
+            log.warning(
+                f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1"
+            )
+
     return 0
 
 

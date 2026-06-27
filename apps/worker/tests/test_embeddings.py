@@ -8,15 +8,16 @@ Fase 7 fix: valida que:
 - _extract_vector suporta múltiplos formatos de resposta
 - embed_pillars NÃO salva vetor zero no banco
 """
-import asyncio
+
 import sys
-import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from llm.embeddings import embed_text, embed_pillars, _extract_vector, EMBED_DIM
+from llm.embeddings import EMBED_DIM, _extract_vector, embed_pillars, embed_text
 
 
 class TestExtractVector:
@@ -86,8 +87,9 @@ class TestEmbedText:
         with patch("httpx.AsyncClient.post", new=mock_post):
             await embed_text("texto de teste")
 
-        assert "options" not in captured_payload["json"], \
+        assert "options" not in captured_payload["json"], (
             "Payload NÃO deve mais conter 'options' (causa erro 400 na HF API)"
+        )
         assert captured_payload["json"]["inputs"] == "texto de teste"
 
     @pytest.mark.asyncio
@@ -111,6 +113,7 @@ class TestEmbedText:
     @pytest.mark.asyncio
     async def test_sucesso_retorna_vetor_correto(self):
         """Quando API responde 200 com vetor válido, retorna o vetor."""
+
         async def mock_post(self, url, json=None, headers=None):
             mock_resp = MagicMock()
             mock_resp.status_code = 200
@@ -198,14 +201,23 @@ class TestEmbedPillars:
         # Mock Supabase — get_supabase é importado dentro da função, mockar db.supabase
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.select.return_value.execute.return_value.data = [
-            {"id": "uuid-1", "slug": "ia", "name": "IA", "description": "desc", "canonical_embedding": None}
+            {
+                "id": "uuid-1",
+                "slug": "ia",
+                "name": "IA",
+                "description": "desc",
+                "canonical_embedding": None,
+            }
         ]
         mock_update = MagicMock()
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute = mock_update
 
         # Mock embed_text para retornar vetor zero (simula falha)
         with patch("db.supabase.get_supabase", return_value=mock_supabase):
-            with patch("llm.embeddings.embed_text", new=AsyncMock(return_value=[0.0] * EMBED_DIM)):
+            with patch(
+                "llm.embeddings.embed_text",
+                new=AsyncMock(return_value=[0.0] * EMBED_DIM),
+            ):
                 await embed_pillars()
 
         # NÃO deve ter chamado update (vetor zero não salva)
@@ -216,10 +228,18 @@ class TestEmbedPillars:
         """Pilar com embedding válido deve ser salvo no banco."""
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.select.return_value.execute.return_value.data = [
-            {"id": "uuid-1", "slug": "ia", "name": "IA", "description": "desc", "canonical_embedding": None}
+            {
+                "id": "uuid-1",
+                "slug": "ia",
+                "name": "IA",
+                "description": "desc",
+                "canonical_embedding": None,
+            }
         ]
         mock_update_result = MagicMock()
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute = mock_update_result
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute = (
+            mock_update_result
+        )
 
         valid_vec = [0.1] * EMBED_DIM
 
@@ -237,8 +257,13 @@ class TestEmbedPillars:
         """Pilar que já tem embedding deve ser pulado (idempotente)."""
         mock_supabase = MagicMock()
         mock_supabase.table.return_value.select.return_value.execute.return_value.data = [
-            {"id": "uuid-1", "slug": "ia", "name": "IA", "description": "desc",
-             "canonical_embedding": [0.5] * EMBED_DIM}  # já tem
+            {
+                "id": "uuid-1",
+                "slug": "ia",
+                "name": "IA",
+                "description": "desc",
+                "canonical_embedding": [0.5] * EMBED_DIM,
+            }  # já tem
         ]
 
         with patch("db.supabase.get_supabase", return_value=mock_supabase):

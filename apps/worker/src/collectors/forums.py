@@ -13,7 +13,6 @@ Subreddits monitorados (comunidades ativas e verificadas):
 - r/learnprogramming (aprendizado de programação)
 - r/educationalgifs (GIFs educativos)
 """
-from datetime import datetime, timezone
 
 import httpx
 
@@ -63,9 +62,7 @@ class ForumsCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    async def _fetch_subreddit(
-        self, client: httpx.AsyncClient, sub: str
-    ) -> list[RawFinding]:
+    async def _fetch_subreddit(self, client: httpx.AsyncClient, sub: str) -> list[RawFinding]:
         """
         Busca posts recentes de um subreddit via API JSON pública.
 
@@ -116,9 +113,7 @@ class ForumsCollector(BaseCollector):
             return None
 
         # Constrói URL completa do post
-        full_url = (
-            f"https://www.reddit.com{permalink}" if permalink else ""
-        )
+        full_url = f"https://www.reddit.com{permalink}" if permalink else ""
 
         # Todos os subreddits monitorados são comunidades em inglês
         language = "en"

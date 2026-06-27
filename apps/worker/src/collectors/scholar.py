@@ -9,8 +9,8 @@ no contexto brasileiro.
 Aviso: scholarly é síncrono. Para MVP isso é aceitável; em produção,
 considere executar em um thread executor para não bloquear o event loop.
 """
+
 import asyncio
-from datetime import datetime, timezone
 
 from scholarly import scholarly
 
@@ -86,9 +86,7 @@ class ScholarCollector(BaseCollector):
 
         return items
 
-    def _parse_publication(
-        self, pub: dict, query: str
-    ) -> RawFinding | None:
+    def _parse_publication(self, pub: dict, query: str) -> RawFinding | None:
         """
         Converte um resultado do scholarly em RawFinding.
 

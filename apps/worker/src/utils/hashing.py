@@ -1,4 +1,5 @@
 """Utilitário de hashing SHA-256 para deduplicação de findings."""
+
 import hashlib
 
 

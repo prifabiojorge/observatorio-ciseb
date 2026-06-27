@@ -3,14 +3,16 @@
 Valida a fórmula de scoring documentada em memoria/03_SCHEMA_BANCO.md
 e a robustez do parser JSON contra alucinações do LLM.
 """
+
 import sys
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from llm.classifier import compute_score, novelty_score, enrich, VALID_PILLARS
+from llm.classifier import VALID_PILLARS, compute_score, enrich, novelty_score
 
 
 class TestComputeScore:
@@ -18,7 +20,7 @@ class TestComputeScore:
 
     def test_score_maximo_para_finding_perfeito(self):
         """Todos flags True → dimensões máximas → score próximo de 100.
-        
+
         Nota: dim_level=80 quando audience presente (não 100), então
         score composto = 100*0.30+100*0.20+100*0.20+100*0.15+80*0.10+100*0.05
                        = 30+20+20+15+8+5 = 98
@@ -140,28 +142,33 @@ class TestNoveltyScore:
     """Valida novelty_score — decai com a idade do achado."""
 
     def test_7_dias_ou_menos_retorna_100(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         recent = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
         assert novelty_score(recent) == 100
 
     def test_8_a_30_dias_retorna_80(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         mid = (datetime.now(timezone.utc) - timedelta(days=20)).isoformat()
         assert novelty_score(mid) == 80
 
     def test_31_a_90_dias_retorna_50(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         old = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
         assert novelty_score(old) == 50
 
     def test_mais_de_90_dias_retorna_30(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         very_old = (datetime.now(timezone.utc) - timedelta(days=180)).isoformat()
         assert novelty_score(very_old) == 30
 
     def test_iso_com_z_suffix_funciona(self):
         """ISO 8601 com Z (UTC) deve ser parseado corretamente."""
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         recent_z = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
         assert novelty_score(recent_z) == 100
 
@@ -179,7 +186,11 @@ class TestEnrichParser:
     async def test_enrich_retorna_none_para_json_invalido(self):
         """Se DeepSeek retornar texto não-JSON, enrich deve retornar None (não crashar)."""
         finding = {"id": "test-1", "title": "Teste", "content_text": "x" * 100}
-        with patch("llm.classifier.chat", new_callable=AsyncMock, return_value="isso não é JSON"):
+        with patch(
+            "llm.classifier.chat",
+            new_callable=AsyncMock,
+            return_value="isso não é JSON",
+        ):
             result = await enrich(finding)
         assert result is None
 
@@ -205,7 +216,7 @@ class TestEnrichParser:
     async def test_enrich_aceita_json_valido_com_pilar_alto(self):
         """JSON válido com pilar ≥ 0.55 deve retornar dict enriquecido."""
         finding = {"id": "test-4", "title": "Teste", "content_text": "x" * 100}
-        good_json = '''{
+        good_json = """{
             "summary": "Resumo do achado",
             "pillars": [{"slug": "ia", "confidence": 0.85}],
             "audience": "basica",
@@ -213,7 +224,7 @@ class TestEnrichParser:
             "replicable": true,
             "practical_project": true,
             "application_suggestion": "Aplicar em sala"
-        }'''
+        }"""
         with patch("llm.classifier.chat", new_callable=AsyncMock, return_value=good_json):
             result = await enrich(finding)
         assert result is not None
@@ -224,15 +235,19 @@ class TestEnrichParser:
     async def test_enrich_filtrar_pillars_invalidos(self):
         """Slugs não reconhecidos devem ser filtrados, mantendo apenas válidos."""
         finding = {"id": "test-5", "title": "Teste", "content_text": "x" * 100}
-        json_with_bad_slugs = '''{
+        json_with_bad_slugs = """{
             "summary": "ok",
             "pillars": [
                 {"slug": "ia", "confidence": 0.85},
                 {"slug": "slug_inexistente", "confidence": 0.90},
                 {"slug": "maker", "confidence": 0.70}
             ]
-        }'''
-        with patch("llm.classifier.chat", new_callable=AsyncMock, return_value=json_with_bad_slugs):
+        }"""
+        with patch(
+            "llm.classifier.chat",
+            new_callable=AsyncMock,
+            return_value=json_with_bad_slugs,
+        ):
             result = await enrich(finding)
         assert result is not None
         slugs = [p["slug"] for p in result["pillars"]]

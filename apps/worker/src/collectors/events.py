@@ -15,8 +15,9 @@ para o CHECKPOINT F2.1.
 import httpx
 from trafilatura import extract
 
-from .base import BaseCollector, RawFinding
 from utils.text import clean
+
+from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
 # Fontes de eventos e editais (4 agências de fomento)
@@ -89,9 +90,7 @@ class EventsCollector(BaseCollector):
     # Helpers internos
     # ------------------------------------------------------------------
 
-    async def _fetch_page(
-        self, client: httpx.AsyncClient, src: dict
-    ) -> list[RawFinding]:
+    async def _fetch_page(self, client: httpx.AsyncClient, src: dict) -> list[RawFinding]:
         """
         Busca e extrai conteúdo textual de uma página de editais.
 
@@ -110,10 +109,7 @@ class EventsCollector(BaseCollector):
         try:
             response = await client.get(src["url"])
             if response.status_code != 200:
-                print(
-                    f"[events] Status {response.status_code} "
-                    f"para {src['slug']}"
-                )
+                print(f"[events] Status {response.status_code} para {src['slug']}")
                 return []
         except Exception as exc:
             print(f"[events] Erro HTTP {src['slug']}: {exc}")

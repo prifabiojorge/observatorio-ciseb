@@ -1,0 +1,26 @@
+# Configuração Ruff — Observatório CISEB Worker
+# Fase 7 fix (auditoria Harness 2026-06-27):
+# - E402 ignorado: imports após CRON_SECRET check são intencionais (fail-closed pattern)
+# - E701 ignorado: permitido em dataclasses e guards compactos
+
+target-version = "py311"
+line-length = 100
+
+[lint]
+# Regras habilitadas: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort)
+select = ["E", "W", "F", "I"]
+
+# Ignorados intencionalmente:
+ignore = [
+    "E402",  # Module level import not at top of file — necessário para fail-closed pattern em api.py
+    "E701",  # Multiple statements on one line — permitido em guards compactos (ex: `if x: return`)
+    "E501",  # Line too long — já controlado por line-length, mas ruff format resolve
+]
+
+# Permite isort reordenar imports
+[lint.isort]
+known-first-party = ["collectors", "db", "delivery", "llm", "utils", "sentry_init"]
+
+# Arquivos de teste têm regras mais permissivas
+[lint.per-file-ignores]
+"tests/*" = ["F401"]  # imports não usados em testes são OK (fixtures, etc)

@@ -9,8 +9,10 @@ Uso:
     supabase = get_supabase()
     result = supabase.table("findings").select("*").execute()
 """
+
 import os
-from supabase import create_client, Client
+
+from supabase import Client, create_client
 
 # ── Configuração via variáveis de ambiente (NUNCA hardcoded) ──────────────
 _url: str = os.environ["SUPABASE_URL"]

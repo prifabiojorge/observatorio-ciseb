@@ -5,15 +5,17 @@ Resolve o health check do Render (port binding) e expõe endpoints para Vercel c
 Fase 7 (auditoria Harness 2026-06-27): Sentry integrado para captura de erros
 em produção. Inicializado ANTES de qualquer import interno.
 """
-import os
-import asyncio
+
 import logging
-from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # Fase 7: inicializar Sentry PRIMEIRO, antes de qualquer outro import.
 # Isto garante que erros durante o carregamento de main.py também sejam capturados.
 from sentry_init import init_sentry
+
 init_sentry()
 
 logger = logging.getLogger(__name__)
@@ -42,14 +44,17 @@ app = FastAPI(title="Observatório CISEB Worker", version="0.1.0")
 security = HTTPBearer(auto_error=False)
 
 
-def verify_cron(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> bool:
+def verify_cron(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> bool:
     """
     Verifica se a requisição tem o token CRON_SECRET no header Authorization.
-    
+
     Usa comparação em tempo constante (hmac.compare_digest) para mitigar
     timing attacks na validação do token.
     """
     import hmac
+
     if not credentials or not credentials.credentials:
         raise HTTPException(status_code=401, detail="Unauthorized — Bearer token required")
     if not hmac.compare_digest(credentials.credentials, CRON_SECRET):
@@ -76,6 +81,7 @@ async def run(_: bool = Depends(verify_cron)):
     except Exception as e:
         # Fase 7: capturar erro no Sentry antes de propagar
         from sentry_init import capture_exception
+
         capture_exception(e, tags={"endpoint": "/run", "component": "pipeline"})
         logger.error(f"Erro no pipeline: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -91,9 +97,10 @@ async def digest(_: bool = Depends(verify_cron)):
     A mensagem é enviada via Telegram em formato HTML com links
     para as fontes originais de cada achado.
     """
+    from datetime import datetime, timezone
+
     from db.supabase import get_supabase
     from delivery.telegram import send_message
-    from datetime import datetime, timezone
 
     supabase = get_supabase()
 
@@ -131,10 +138,7 @@ async def digest(_: bool = Depends(verify_cron)):
             continue
         title = f["title"][:80]
         url = f["source_url"]
-        lines.append(
-            f'{i}. [{s["score_composite"]}] <b>{title}</b>\n'
-            f'   🔗 {url}'
-        )
+        lines.append(f"{i}. [{s['score_composite']}] <b>{title}</b>\n   🔗 {url}")
 
     await send_message("\n".join(lines))
     return {"status": "ok", "message": f"Digest enviado com {len(findings)} achados"}
@@ -142,5 +146,6 @@ async def digest(_: bool = Depends(verify_cron)):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

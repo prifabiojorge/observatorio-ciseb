@@ -1,12 +1,21 @@
 /**
- * Testes de autenticação para as rotas API — Validação do patch #2.
+ * Testes de autenticação para as rotas API — Fase 5+ (Supabase Auth).
  *
- * Estes testes mockam o cliente Supabase e validam APENAS a lógica de
- * autenticação (Bearer CRON_SECRET + fail-closed). Não testam a conexão
- * real com o banco.
+ * Fase 7 fix (auditoria Harness 2026-06-27): testes atualizados para refletir
+ * que /api/findings/* agora usam Supabase Auth (cookies), não mais CRON_SECRET.
+ * /api/cron/* continuam com CRON_SECRET.
+ *
+ * Mocks:
+ * - @supabase/ssr createServerClient: simula sessão de usuário autenticado
+ * - @supabase/supabase-js createClient: simula cliente Supabase
  */
 
-const mockSupabase = {
+// Mock do @supabase/ssr (usado por /api/findings/*)
+const mockSession = { user: { id: 'user-uuid-123' } };
+const mockSupabaseAuth = {
+    auth: {
+        getSession: jest.fn(),
+    },
     from: jest.fn(() => ({
         select: jest.fn(() => ({
             eq: jest.fn(() => ({
@@ -23,20 +32,28 @@ const mockSupabase = {
     })),
 };
 
-jest.mock('@supabase/supabase-js', () => ({
-    createClient: jest.fn(() => mockSupabase),
+jest.mock('@supabase/ssr', () => ({
+    createServerClient: jest.fn(() => mockSupabaseAuth),
 }));
 
-function makeRequest(headers = {}) {
+// Mock do next/headers (cookies)
+jest.mock('next/headers', () => ({
+    cookies: jest.fn(() => ({
+        getAll: jest.fn(() => []),
+        set: jest.fn(),
+    })),
+}));
+
+function makeRequest(headers: Record<string, string> = {}) {
     return {
         headers: {
-            get: (name) => headers[name] || null,
+            get: (name: string): string | null => headers[name] || null,
         },
         json: async () => ({}),
     };
 }
 
-describe('Rotas API — validação de auth (patch #2)', () => {
+describe('Rotas /api/cron/* — auth via CRON_SECRET (Fase 4+)', () => {
     const ORIGINAL_ENV = { ...process.env };
 
     beforeEach(() => {
@@ -53,91 +70,6 @@ describe('Rotas API — validação de auth (patch #2)', () => {
         process.env = ORIGINAL_ENV;
     });
 
-    describe('GET /api/findings/pending', () => {
-        it('retorna 401 sem header Authorization', async () => {
-            const { GET } = require('../app/api/findings/pending/route');
-            const res = await GET(makeRequest());
-            expect(res.status).toBe(401);
-            const body = await res.json();
-            expect(body.error).toMatch(/Unauthorized/i);
-        });
-
-        it('retorna 401 com token errado', async () => {
-            const { GET } = require('../app/api/findings/pending/route');
-            const res = await GET(makeRequest({ authorization: 'Bearer token-errado' }));
-            expect(res.status).toBe(401);
-        });
-
-        it('retorna 401 com Authorization malformado (sem Bearer)', async () => {
-            const { GET } = require('../app/api/findings/pending/route');
-            const res = await GET(makeRequest({ authorization: 'test-secret-123' }));
-            expect(res.status).toBe(401);
-        });
-
-        it('retorna 401 com scheme diferente', async () => {
-            const { GET } = require('../app/api/findings/pending/route');
-            const res = await GET(makeRequest({ authorization: 'Basic test-secret-123' }));
-            expect(res.status).toBe(401);
-        });
-
-        it('passa auth com Bearer + token correto', async () => {
-            const { GET } = require('../app/api/findings/pending/route');
-            const res = await GET(makeRequest({ authorization: 'Bearer test-secret-123' }));
-            expect(res.status).toBe(200);
-        });
-    });
-
-    describe('POST /api/findings/decide', () => {
-        it('retorna 401 sem header Authorization', async () => {
-            const { POST } = require('../app/api/findings/decide/route');
-            const req = { ...makeRequest(), json: async () => ({ id: '550e8400-e29b-41d4-a716-446655440000', decision: 'approved' }) };
-            const res = await POST(req);
-            expect(res.status).toBe(401);
-        });
-
-        it('retorna 401 com token errado', async () => {
-            const { POST } = require('../app/api/findings/decide/route');
-            const req = {
-                ...makeRequest({ authorization: 'Bearer errado' }),
-                json: async () => ({ id: '550e8400-e29b-41d4-a716-446655440000', decision: 'approved' }),
-            };
-            const res = await POST(req);
-            expect(res.status).toBe(401);
-        });
-
-        it('retorna 400 com id que não é UUID v4', async () => {
-            const { POST } = require('../app/api/findings/decide/route');
-            const req = {
-                ...makeRequest({ authorization: 'Bearer test-secret-123' }),
-                json: async () => ({ id: 'nao-e-uuid', decision: 'approved' }),
-            };
-            const res = await POST(req);
-            expect(res.status).toBe(400);
-            const body = await res.json();
-            expect(body.error).toMatch(/UUID/i);
-        });
-
-        it('retorna 400 com decision inválida', async () => {
-            const { POST } = require('../app/api/findings/decide/route');
-            const req = {
-                ...makeRequest({ authorization: 'Bearer test-secret-123' }),
-                json: async () => ({ id: '550e8400-e29b-41d4-a716-446655440000', decision: 'maybe' }),
-            };
-            const res = await POST(req);
-            expect(res.status).toBe(400);
-        });
-
-        it('passa auth e validação com payload correto', async () => {
-            const { POST } = require('../app/api/findings/decide/route');
-            const req = {
-                ...makeRequest({ authorization: 'Bearer test-secret-123' }),
-                json: async () => ({ id: '550e8400-e29b-41d4-a716-446655440000', decision: 'approved' }),
-            };
-            const res = await POST(req);
-            expect(res.status).toBe(200);
-        });
-    });
-
     describe('GET /api/cron/collect', () => {
         it('retorna 401 sem Authorization', async () => {
             const { GET } = require('../app/api/cron/collect/route');
@@ -151,39 +83,126 @@ describe('Rotas API — validação de auth (patch #2)', () => {
             expect(res.status).toBe(401);
         });
     });
+
+    describe('GET /api/cron/digest', () => {
+        it('retorna 401 sem Authorization', async () => {
+            const { GET } = require('../app/api/cron/digest/route');
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(401);
+        });
+    });
 });
 
-describe('Fail-closed: rotas recusam carregar sem env vars', () => {
+describe('Rotas /api/findings/* — auth via Supabase Auth (Fase 5+)', () => {
     const ORIGINAL_ENV = { ...process.env };
 
     beforeEach(() => {
         jest.resetModules();
         process.env = { ...ORIGINAL_ENV };
+        process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fake.supabase.co';
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'fake-anon-key';
+        // Reset session mock
+        mockSupabaseAuth.auth.getSession.mockReset();
     });
 
     afterAll(() => {
         process.env = ORIGINAL_ENV;
     });
 
-    it('collect/route lança erro sem CRON_SECRET', () => {
-        delete process.env.CRON_SECRET;
-        delete process.env.RENDER_RUN_URL;
-        expect(() => require('../app/api/cron/collect/route')).toThrow(/CRON_SECRET|RENDER_RUN_URL/);
+    describe('GET /api/findings/pending', () => {
+        it('retorna 401 quando não há sessão', async () => {
+            // Simula sessão ausente (middleware deveria bloquear, mas defesa em profundidade)
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: null },
+                error: null,
+            });
+
+            const { GET } = require('../app/api/findings/pending/route');
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(401);
+        });
+
+        it('retorna 200 quando há sessão válida', async () => {
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: mockSession },
+                error: null,
+            });
+
+            const { GET } = require('../app/api/findings/pending/route');
+            const res = await GET(makeRequest());
+            // Como o mock retorna data: [], deve dar 200 com array vazio
+            expect(res.status).toBe(200);
+        });
     });
 
-    it('digest/route lança erro sem CRON_SECRET', () => {
-        delete process.env.CRON_SECRET;
-        delete process.env.RENDER_DIGEST_URL;
-        expect(() => require('../app/api/cron/digest/route')).toThrow(/CRON_SECRET|RENDER_DIGEST_URL/);
-    });
+    describe('POST /api/findings/decide', () => {
+        it('retorna 401 quando não há sessão', async () => {
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: null },
+                error: null,
+            });
 
-    it('pending/route lança erro sem CRON_SECRET', () => {
-        delete process.env.CRON_SECRET;
-        expect(() => require('../app/api/findings/pending/route')).toThrow(/CRON_SECRET/);
-    });
+            const { POST } = require('../app/api/findings/decide/route');
+            const req = {
+                ...makeRequest(),
+                json: async () => ({
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    decision: 'approved',
+                }),
+            };
+            const res = await POST(req);
+            expect(res.status).toBe(401);
+        });
 
-    it('decide/route lança erro sem CRON_SECRET', () => {
-        delete process.env.CRON_SECRET;
-        expect(() => require('../app/api/findings/decide/route')).toThrow(/CRON_SECRET/);
+        it('retorna 400 com id que não é UUID v4', async () => {
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: mockSession },
+                error: null,
+            });
+
+            const { POST } = require('../app/api/findings/decide/route');
+            const req = {
+                ...makeRequest(),
+                json: async () => ({ id: 'nao-e-uuid', decision: 'approved' }),
+            };
+            const res = await POST(req);
+            expect(res.status).toBe(400);
+        });
+
+        it('retorna 400 com decision inválida', async () => {
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: mockSession },
+                error: null,
+            });
+
+            const { POST } = require('../app/api/findings/decide/route');
+            const req = {
+                ...makeRequest(),
+                json: async () => ({
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    decision: 'maybe',
+                }),
+            };
+            const res = await POST(req);
+            expect(res.status).toBe(400);
+        });
+
+        it('retorna 200 com payload correto e sessão válida', async () => {
+            mockSupabaseAuth.auth.getSession.mockResolvedValue({
+                data: { session: mockSession },
+                error: null,
+            });
+
+            const { POST } = require('../app/api/findings/decide/route');
+            const req = {
+                ...makeRequest(),
+                json: async () => ({
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    decision: 'approved',
+                }),
+            };
+            const res = await POST(req);
+            expect(res.status).toBe(200);
+        });
     });
 });

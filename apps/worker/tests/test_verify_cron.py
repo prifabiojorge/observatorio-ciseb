@@ -2,10 +2,12 @@
 
 Estes testes validam o patch #1 (fail-closed + timing-safe comparison).
 """
+
 import os
 import sys
-import pytest
 from pathlib import Path
+
+import pytest
 
 # Adiciona src/ ao path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -18,10 +20,10 @@ def setup_crhon_secret(value: str | None):
     else:
         os.environ["CRON_SECRET"] = value
     # Recarrega api (foi importado com valor anterior)
-    import importlib
     if "api" in sys.modules:
         del sys.modules["api"]
     import api
+
     return api
 
 
@@ -59,13 +61,17 @@ class TestVerifyCron:
     def test_token_certo_retorna_true(self):
         """Token correto deve retornar True (sem exceção)."""
         from fastapi.security import HTTPAuthorizationCredentials
-        cred = HTTPAuthorizationCredentials(scheme="Bearer", credentials="teste-secreto-valido-12345")
+
+        cred = HTTPAuthorizationCredentials(
+            scheme="Bearer", credentials="teste-secreto-valido-12345"
+        )
         assert self.api.verify_cron(cred) is True
 
     def test_token_errado_levanta_401(self):
         """Token errado deve levantar HTTPException 401."""
-        from fastapi.security import HTTPAuthorizationCredentials
         from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
         cred = HTTPAuthorizationCredentials(scheme="Bearer", credentials="token-errado")
         with pytest.raises(HTTPException) as exc:
             self.api.verify_cron(cred)
@@ -75,6 +81,7 @@ class TestVerifyCron:
     def test_sem_credenciais_levanta_401(self):
         """None (sem header Authorization) deve levantar 401."""
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc:
             self.api.verify_cron(None)
         assert exc.value.status_code == 401
@@ -82,8 +89,9 @@ class TestVerifyCron:
 
     def test_credenciais_vazias_levanta_401(self):
         """Token vazio deve levantar 401."""
-        from fastapi.security import HTTPAuthorizationCredentials
         from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
         cred = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
         with pytest.raises(HTTPException) as exc:
             self.api.verify_cron(cred)
@@ -98,8 +106,9 @@ class TestTimingSafeComparison:
 
     def test_token_com_comprimento_diferente_eh_rejeitado(self):
         """compare_digest rejeita strings de comprimento diferente sem timing leak."""
-        from fastapi.security import HTTPAuthorizationCredentials
         from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
         # Token muito mais curto que o secret
         cred = HTTPAuthorizationCredentials(scheme="Bearer", credentials="a")
         with pytest.raises(HTTPException) as exc:
@@ -115,18 +124,21 @@ class TestEndpointsIntegracao:
 
     def test_run_sem_auth_retorna_401(self):
         from fastapi.testclient import TestClient
+
         client = TestClient(self.api.app)
         r = client.post("/run")
         assert r.status_code == 401
 
     def test_run_auth_errada_retorna_401(self):
         from fastapi.testclient import TestClient
+
         client = TestClient(self.api.app)
         r = client.post("/run", headers={"Authorization": "Bearer errado"})
         assert r.status_code == 401
 
     def test_digest_sem_auth_retorna_401(self):
         from fastapi.testclient import TestClient
+
         client = TestClient(self.api.app)
         r = client.post("/digest")
         assert r.status_code == 401
@@ -134,6 +146,7 @@ class TestEndpointsIntegracao:
     def test_health_nao_requer_auth(self):
         """Health check é usado pelo Render para liveness — não deve exigir auth."""
         from fastapi.testclient import TestClient
+
         client = TestClient(self.api.app)
         r = client.get("/health")
         assert r.status_code == 200
