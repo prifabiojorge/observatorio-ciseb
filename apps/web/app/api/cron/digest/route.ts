@@ -3,16 +3,24 @@ import { timingSafeEqual } from "crypto";
 
 /**
  * URL do endpoint /digest no Render Web Service.
- * Fallback para o URL de produção caso a env var não esteja definida.
+ *
+ * R1+R2 (auditoria Harness 2026-06-27): ver comentários em collect/route.ts.
  */
 const RENDER_DIGEST_URL = process.env.RENDER_DIGEST_URL || "https://observatorio-ciseb.onrender.com/digest";
+if (!process.env.RENDER_DIGEST_URL) {
+    // eslint-disable-next-line no-console
+    console.warn("[cron/digest] RENDER_DIGEST_URL não configurada — usando fallback público.");
+}
 
 /**
  * Segredo compartilhado entre Vercel cron e Render.
- * Fallback para string vazia — todas as requisições serão rejeitadas
- * como 401 se a env var não estiver configurada (FAIL-CLOSED).
+ * R2: fail-closed em runtime + log explícito se ausente.
  */
 const CRON_SECRET = process.env.CRON_SECRET || "";
+if (!process.env.CRON_SECRET) {
+    // eslint-disable-next-line no-console
+    console.error("[FATAL] [cron/digest] CRON_SECRET não configurado — todas as requisições serão 401.");
+}
 
 export async function GET(request: NextRequest) {
     // ── Verificação de autorização ──────────────────────────────────
@@ -23,6 +31,8 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.slice("Bearer ".length);
     if (!token || !CRON_SECRET) {
+        // eslint-disable-next-line no-console
+        console.error("[cron/digest] Requisição rejeitada: token ou CRON_SECRET ausente.");
         return NextResponse.json({ error: "Unauthorized — missing credentials" }, { status: 401 });
     }
 
