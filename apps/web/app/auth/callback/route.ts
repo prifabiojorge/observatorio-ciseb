@@ -6,7 +6,7 @@
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@/lib/supabase-server';
+import { createMiddlewareClient } from '@/lib/supabase-middleware';
 
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = request.nextUrl;

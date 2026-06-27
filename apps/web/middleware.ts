@@ -5,10 +5,16 @@
  * Atualiza sessão expirada automaticamente (refresh token).
  *
  * Executa em Edge Runtime (antes de qualquer Server Component).
+ *
+ * Fase 7.5 fix (auditoria Harness 2026-06-27):
+ * MIDDLEWARE_INVOCATION_FAILED (500) no /dashboard. Causa: importava de
+ * lib/supabase-server.ts que importa next/headers no topo — não disponível
+ * no Edge Runtime. Corrigido: importar de lib/supabase-middleware.ts (sem
+ * next/headers).
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@/lib/supabase-server';
+import { createMiddlewareClient } from '@/lib/supabase-middleware';
 
 // Rotas que exigem autenticação
 const PROTECTED_PATHS = ['/dashboard'];
