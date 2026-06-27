@@ -8,12 +8,22 @@ Execução:
   python src/main.py --enrich-only     # apenas enriquecimento
 """
 import asyncio
+import logging
 import os
 import sys
 import sys as _sys
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+
+log = logging.getLogger(__name__)
+
+# 7.4 — Configuração de logging estruturado
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 from dotenv import load_dotenv
 
@@ -97,7 +107,7 @@ async def process_finding(
     try:
         return insert_finding(finding_data)
     except Exception as e:
-        print(f"[main] Erro ao inserir finding: {e}")
+        log.error(f"[main] Erro ao inserir finding: {e}")
         return None
 
 
@@ -125,7 +135,7 @@ async def run_collector(collector) -> tuple[str, int, int]:
         
         return (name, total, inserted)
     except Exception as e:
-        print(f"[main] Erro no coletor {name}: {e}")
+        log.error(f"[main] Erro no coletor {name}: {e}")
         return (name, 0, 0)
 
 
@@ -149,14 +159,32 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
 
     supabase = get_supabase()
 
-    print("[main] Embedando pilares CISEB...")
+    log.info("[main] Embedando pilares CISEB...")
     await embed_pillars()
+
+    # 7.3 (auditoria Harness 2026-06-27): priorizar findings stale (>1h) primeiro.
+    # Antes: apenas ORDER BY collected_at ASC pegava os mais antigos, mas sem
+    # threshold temporal. Agora: se há findings new com >1h de idade, esses
+    # têm prioridade (provável falha anterior de enrich). Se não há stale,
+    # pega os mais recentes (comportamento original).
+    from datetime import timedelta
+    stale_threshold = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
 
     new_findings = (
         supabase.table("findings").select("*").eq("status", "new")
+        .lt("collected_at", stale_threshold)
         .order("collected_at", desc=False).limit(batch_size).execute().data
     )
-    print(f"[main] Enriquecendo {len(new_findings)} findings...")
+
+    if not new_findings:
+        # Sem stale — pega os mais recentes (comportamento original)
+        new_findings = (
+            supabase.table("findings").select("*").eq("status", "new")
+            .order("collected_at", desc=False).limit(batch_size).execute().data
+        )
+        log.info(f"[main] Enriquecendo {len(new_findings)} findings (sem stale >1h)...")
+    else:
+        log.info(f"[main] Enriquecendo {len(new_findings)} findings STALE (>1h, prioridade)...")
 
     for f in new_findings:
         fid = f["id"]
@@ -199,9 +227,9 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         stats["enriched"] += 1
         if sc["score_composite"] >= 75:
             stats["scored_high"] += 1
-        print(f"[main]   [{sc['score_composite']:>3}] {f['title'][:60]}...")
+        log.info(f"[main]   [{sc['score_composite']:>3}] {f['title'][:60]}...")
 
-    print(f"[main] Enriquecimento: {stats}")
+    log.info(f"[main] Enriquecimento: {stats}")
 
     # ─── Alertas Telegram (score composto ≥ 75) ─────────────────
     # Após enriquecer e pontuar, envia alertas para os achados
@@ -316,12 +344,12 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
             }).execute()
 
             alerts_sent += 1
-            print(
+            log.info(
                 f"[main] 📤 Alerta Telegram enviado: "
                 f"[{best_score}] {f_alert['title'][:50]}..."
             )
         except Exception as e:
-            print(f"[main] Erro ao enviar alerta Telegram: {e}")
+            log.error(f"[main] Erro ao enviar alerta Telegram: {e}")
 
     stats["alerts_sent"] = alerts_sent
     return stats
@@ -338,46 +366,46 @@ async def main():
     _ds = "✅" if _os.environ.get("DEEPSEEK_API_KEY") else "❌"
     phase = "coleta" if "--collect-only" in _sys.argv else ("enrich" if "--enrich-only" in _sys.argv else "full")
     
-    print("[main] ═══════════════════════════════════════════")
-    print(f"[main] Observatório CISEB — Fase {'Coleta' if phase != 'enrich' else 'Enriquecimento'}")
-    print(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    print("[main] ═══════════════════════════════════════════")
-    print(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds} | Modo: {phase}")
+    log.info("[main] ═══════════════════════════════════════════")
+    log.info(f"[main] Observatório CISEB — Fase {'Coleta' if phase != 'enrich' else 'Enriquecimento'}")
+    log.info(f"[main] {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    log.info("[main] ═══════════════════════════════════════════")
+    log.info(f"[main] Env: HF_API_KEY={_hf} DEEPSEEK_API_KEY={_ds} | Modo: {phase}")
     
     # ── Coleta ─────────────────────────────────────────
     if phase in ("coleta", "full"):
-        print(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
+        log.info(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
         results = await asyncio.gather(*[run_collector(c) for c in ALL_COLLECTORS], return_exceptions=False)
         total_collected = sum(r[1] for r in results)
         total_inserted = sum(r[2] for r in results)
         duplicates = total_collected - total_inserted
         
-        print()
-        print("[main] ═══════════════════════════════════════════")
-        print("[main] 📊 RESUMO DA COLETA")
-        print("[main] ═══════════════════════════════════════════")
+        log.info("")
+        log.info("[main] ═══════════════════════════════════════════")
+        log.info("[main] 📊 RESUMO DA COLETA")
+        log.info("[main] ═══════════════════════════════════════════")
         for name, collected, inserted in results:
             dup = collected - inserted
-            print(f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados")
-        print("[main] ───────────────────────────────────────────")
-        print(f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados")
-        print("[main] ═══════════════════════════════════════════")
+            log.info(f"[main]   {name:.<40s} {collected:>3d} coletados  {inserted:>3d} inseridos  {dup:>3d} duplicados")
+        log.info("[main] ───────────────────────────────────────────")
+        log.info(f"[main]   TOTAL: {total_collected} coletados | {total_inserted} inseridos | {duplicates} duplicados")
+        log.info("[main] ═══════════════════════════════════════════")
         if total_inserted >= 50:
-            print("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
+            log.info("[main] ✅ CHECKPOINT F2.1: ≥50 findings atingido!")
         else:
-            print(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
+            log.warning(f"[main] ⚠️  Faltam {50 - total_inserted} findings para CHECKPOINT F2.1")
     
     # ── Enriquecimento ─────────────────────────────────
     if phase in ("enrich", "full"):
-        print()
-        print("[main] ═══════════════════════════════════════════")
-        print("[main] 🔬 FASE 3 — ENRIQUECIMENTO + SCORING")
-        print("[main] ═══════════════════════════════════════════")
+        log.info("")
+        log.info("[main] ═══════════════════════════════════════════")
+        log.info("[main] 🔬 FASE 3 — ENRIQUECIMENTO + SCORING")
+        log.info("[main] ═══════════════════════════════════════════")
         enrich_stats = await run_enrich_and_score(batch_size=20)
         if enrich_stats["enriched"] >= 20:
-            print("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
+            log.info("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
         else:
-            print(f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1")
+            log.warning(f"[main] ⚠️  Faltam {20 - enrich_stats['enriched']} scored para CHECKPOINT F3.1")
     
     return 0
 
