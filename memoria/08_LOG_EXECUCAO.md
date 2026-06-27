@@ -140,6 +140,35 @@
 [2026-06-27 11:53] [ORQUESTRADOR] 🎉 FASE 5 CONCLUÍDA: login, dashboard, auth, cron, 40 testes, segurança.
 ```
 
+### 2026-06-27 — Fase 6: Correções pós-auditoria Harness (CONCLUÍDA)
+
+> Auditoria externa do Agente do Harness identificou 3 regressões sutis
+> nos commits "fix type error" da Fase 5 + 4 gaps da FASE 7 do Plano.
+> Esta fase aplica todas as correções sem quebrar os 40 testes existentes.
+
+```
+[2026-06-27 15:30] [GUARDIÃO] R3 (Alta): console.error em decide/route.ts restaurado para SEMPRE logar (não só em dev).
+[2026-06-27 15:35] [GUARDIÃO] R2 (Média): adicionado log.error("[FATAL]") quando CRON_SECRET ausente em collect/digest routes.
+[2026-06-27 15:40] [GUARDIÃO] R1 (Média): comentários explicam trade-off fail-closed runtime vs build-time; URL Render mantida como fallback com warning.
+[2026-06-27 15:45] [ARQUITETO] 7.1: bug dim_alignment não truncado CORRIGIDO — max(0, min(100, ...)) aplicado.
+[2026-06-27 15:45] [HARNESS] 7.1: teste test_score_sempre_entre_0_e_100 atualizado — agora valida dim_alignment <= 100 (antes documentava bug).
+[2026-06-27 15:50] [ARQUITETO] 7.2: asyncio.sleep(5) adicionado entre queries no scholar.py (rate limiting Google Scholar).
+[2026-06-27 15:55] [ARQUITETO] 7.3: run_enrich_and_score agora prioriza findings stale (>1h) antes dos recentes.
+[2026-06-27 16:00] [HARNESS] 7.4: TODOS os print() do main.py substituídos por log.info/warning/error estruturado.
+[2026-06-27 16:00] [HARNESS] logging.basicConfig configurado com formato 'YYYY-MM-DD HH:MM:SS [module] LEVEL: message'.
+[2026-06-27 16:05] [HARNESS] 🧪 40/40 testes pytest PASSANDO após todas as correções.
+[2026-06-27 16:10] [ORQUESTRADOR] 🎉 CHECKPOINT F6.1 + F6.2 ATINGIDOS: 3 regressões + 4 gaps corrigidos.
+```
+
+**Arquivos modificados nesta fase:**
+- `apps/web/app/api/findings/decide/route.ts` (R3)
+- `apps/web/app/api/cron/collect/route.ts` (R1 + R2)
+- `apps/web/app/api/cron/digest/route.ts` (R1 + R2)
+- `apps/worker/src/llm/classifier.py` (7.1)
+- `apps/worker/tests/test_classifier.py` (7.1 teste atualizado)
+- `apps/worker/src/collectors/scholar.py` (7.2)
+- `apps/worker/src/main.py` (7.3 + 7.4)
+
 ---
 
 ## Inventário de contas e serviços
@@ -165,6 +194,8 @@
 | F3.1 | `[x] COMPLETO` | 2026-06-26 | 30 scored ✅ 6 embeddings ✅ scores ✅ custo $0.015 ✅ |
 | F4.1 | `[x] COMPLETO` | 2026-06-27 | Dashboard✅ Aprovar✅ Alertas 5✅ Cron✅ |
 | F5.6 | `[x] COMPLETO` | 2026-06-27 | Deploy Vercel✅ Render✅ Login✅ Dashboard✅ Auth✅ |
+| F6.1 | `[x] COMPLETO` | 2026-06-27 | R3 console.error sempre✅ R2 log CRON_SECRET✅ R1 fail-closed+type✅ |
+| F6.2 | `[x] COMPLETO` | 2026-06-27 | 7.1 dim_alignment truncado✅ 7.2 scholar sleep✅ 7.3 stale retry✅ 7.4 logging✅ |
 
 ---
 

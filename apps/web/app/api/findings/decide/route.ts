@@ -94,15 +94,14 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             // ⚠️ Estado inconsistente: review inserida mas findings.status não atualizado.
-            // Em produção, este evento deve ser capturado por sistema de monitoramento
-            // (Sentry, DataDog, etc.). Por ora, logamos apenas em desenvolvimento.
-            if (process.env.NODE_ENV === 'development') {
-                // eslint-disable-next-line no-console
-                console.error(
-                    `[decide] Estado inconsistente: review inserida para ${id} ` +
-                    `mas findings.status não atualizado: ${updateError.message}`
-                );
-            }
+            // R3 (auditoria Harness 2026-06-27): logar SEMPRE, em produção e dev.
+            // Sem Sentry configurado ainda — console.error é o canal de observabilidade.
+            // Quando Sentry for adicionado (Fase 6), substituir por Sentry.captureException.
+            // eslint-disable-next-line no-console
+            console.error(
+                `[decide] Estado inconsistente: review inserida para ${id} ` +
+                `mas findings.status não atualizado: ${updateError.message}`
+            );
             return NextResponse.json(
                 { error: "Review inserted but finding status update failed", id },
                 { status: 500 }

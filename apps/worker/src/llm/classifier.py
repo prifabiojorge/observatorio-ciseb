@@ -73,7 +73,10 @@ async def enrich(finding: dict) -> dict | None:
 def compute_score(enriched: dict, finding: dict | None = None) -> dict:
     pillars = enriched.get("pillars", [])
     alignment = sum(p.get("confidence", 0) for p in pillars) / max(len(pillars), 1)
-    dim_alignment = int(alignment * 100)
+    # 7.1 (auditoria Harness 2026-06-27): truncar dim_alignment individualmente.
+    # Antes: se confidence > 1.0 (anômala em alucinação LLM), dim_alignment excedia 100.
+    # Agora: max(0, min(100, ...)) garante range [0, 100] em todas as dimensões.
+    dim_alignment = max(0, min(100, int(alignment * 100)))
     dim_br = 100 if enriched.get("geo_br") else 30
     dim_rep = 100 if enriched.get("replicable") else 30
     dim_pra = 100 if enriched.get("practical_project") else 40
