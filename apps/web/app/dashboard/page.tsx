@@ -8,6 +8,12 @@
  * 
  * Client-side rendering com chamadas fetch às API routes.
  * 
+ * 🔒 AUTENTICAÇÃO: O token NEXT_PUBLIC_DASHBOARD_TOKEN é injetado no
+ *    bundle client-side e enviado como Bearer nas chamadas às API
+ *    routes. Isto NÃO é segurança real — é apenas uma barreira contra
+ *    acesso casual. Para segurança real, migrar para Supabase Auth
+ *    (Fase 5). Aceitável para MVP com revisor único (Fábio).
+ * 
  * Rota: /dashboard
  */
 
@@ -46,6 +52,22 @@ interface ActionFeedback {
 const API_PENDING = "/api/findings/pending";
 const API_DECIDE = "/api/findings/decide";
 
+/**
+ * Token público injetado no client-side. Não é segurança real (qualquer
+ * um pode inspecionar o bundle), mas previne acesso casual via URL.
+ * Para segurança real: Supabase Auth (Fase 5).
+ */
+const DASHBOARD_TOKEN = process.env.NEXT_PUBLIC_DASHBOARD_TOKEN || "";
+
+/** Monta headers com Authorization para chamadas autenticadas. */
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DASHBOARD_TOKEN}`,
+        ...extra,
+    };
+}
+
 /** Mapeamento de tipo de feedback para cores de fundo */
 const FEEDBACK_COLORS: Record<FeedbackType, string> = {
     success: "#d4edda",
@@ -66,7 +88,12 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(API_PENDING);
+            const res = await fetch(API_PENDING, {
+                headers: authHeaders(),
+            });
+            if (res.status === 401) {
+                throw new Error("Token de acesso ausente ou inválido. Configure NEXT_PUBLIC_DASHBOARD_TOKEN.");
+            }
             if (!res.ok) {
                 const text = await res.text();
                 throw new Error(text || `HTTP ${res.status}`);
@@ -90,10 +117,13 @@ export default function DashboardPage() {
         try {
             const res = await fetch(API_DECIDE, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders(),
                 body: JSON.stringify({ id, decision }),
             });
 
+            if (res.status === 401) {
+                throw new Error("Token de acesso inválido.");
+            }
             if (!res.ok) {
                 const text = await res.text();
                 throw new Error(text || `HTTP ${res.status}`);

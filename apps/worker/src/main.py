@@ -207,8 +207,16 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
     # Após enriquecer e pontuar, envia alertas para os achados
     # de maior relevância que ainda não foram notificados.
     # Limite de 5 alertas/dia para evitar flood no Telegram.
+    #
+    # ⚠️ CORREÇÃO: o score exibido no card é o score_composite (0-100)
+    #    calculado pela fórmula em memoria/03_SCHEMA_BANCO.md, NÃO a
+    #    confiança do pilar (0-1). Antes desta correção, o card mostrava
+    #    confidence*100, que pode divergir significativamente do
+    #    score_composite real (ex: confidence=0.95 mas score_composite=60
+    #    se dim_br_luso=30 e dim_replicable=30).
 
-    high_scored = (
+    # Busca findings scored com seus scores compostos
+    scored_findings = (
         supabase.table("findings")
         .select("id, title, source_url, metadata, collected_at")
         .eq("status", "scored")
@@ -216,31 +224,70 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         .data
     )
 
+    if not scored_findings:
+        stats["alerts_sent"] = 0
+        return stats
+
+    # Busca os score_composite reais do banco para cada finding
+    finding_ids = [f["id"] for f in scored_findings]
+    scores_data = (
+        supabase.table("scores")
+        .select("finding_id, score_composite, pillar_id")
+        .in_("finding_id", finding_ids)
+        .execute()
+        .data
+    )
+
+    # Agrupa por finding_id e seleciona o score_composite máximo
+    # (um finding pode ter múltiplos scores, um por pilar)
+    score_by_finding: dict[str, int] = {}
+    pillar_by_finding: dict[str, str] = {}
+    for s in scores_data:
+        fid = s["finding_id"]
+        sc = int(s["score_composite"])
+        if fid not in score_by_finding or sc > score_by_finding[fid]:
+            score_by_finding[fid] = sc
+            # pillar_id é UUID; precisamos do slug para o card
+            pillar_by_finding[fid] = s.get("pillar_id", "")
+
+    # Cache reverso pillar_id → slug (para exibição no card)
+    pillar_id_to_slug = {v: k for k, v in _get_pillar_id_map().items()}
+
+    # Filtra apenas findings com score_composite ≥ 75 (threshold de alerta)
+    alert_candidates = [
+        f for f in scored_findings
+        if score_by_finding.get(f["id"], 0) >= 75
+    ]
+    # Ordena por score decrescente (prioriza alertas mais relevantes)
+    alert_candidates.sort(
+        key=lambda f: score_by_finding.get(f["id"], 0),
+        reverse=True,
+    )
+
     alerts_sent = 0
     max_alerts = 5  # Máx 5 alertas por rodada para evitar spam
 
-    for f_alert in high_scored:
+    for f_alert in alert_candidates:
         if alerts_sent >= max_alerts:
             break
 
-        enriched_meta = (f_alert.get("metadata") or {}).get("enriched", {})
-        if not enriched_meta:
+        fid = f_alert["id"]
+        best_score = score_by_finding.get(fid, 0)
+        if best_score < 75:
             continue
 
-        # Seleciona o pilar com maior confiança
-        best_pillar = max(
-            enriched_meta.get("pillars", []),
-            key=lambda p: p.get("confidence", 0),
-            default=None,
-        )
-        if not best_pillar:
+        pillar_id = pillar_by_finding.get(fid, "")
+        pillar_slug = pillar_id_to_slug.get(pillar_id, "ia")
+
+        enriched_meta = (f_alert.get("metadata") or {}).get("enriched", {})
+        if not enriched_meta:
             continue
 
         # Verifica se já foi enviado alerta para este finding
         existing_alerts = (
             supabase.table("deliveries")
             .select("id")
-            .eq("finding_id", f_alert["id"])
+            .eq("finding_id", fid)
             .eq("channel", "telegram")
             .execute()
             .data
@@ -248,28 +295,23 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         if existing_alerts:
             continue
 
-        # Score mínimo para alerta: 75/100
-        best_score = int(best_pillar.get("confidence", 0) * 100)
-        if best_score < 75:
-            continue
-
         try:
             await send_alert(
                 title=f_alert["title"],
                 summary=enriched_meta.get("summary", f_alert.get("snippet", "")),
-                score=best_score,
-                pillar=best_pillar.get("slug", "ia"),
+                score=best_score,  # ✅ score_composite real, não confidence*100
+                pillar=pillar_slug,
                 source_url=f_alert["source_url"],
                 application_suggestion=enriched_meta.get("application_suggestion", ""),
             )
 
             # Registra a entrega para evitar reenvio
             supabase.table("deliveries").insert({
-                "finding_id": f_alert["id"],
+                "finding_id": fid,
                 "channel": "telegram",
                 "payload": {
                     "score": best_score,
-                    "pillar": best_pillar.get("slug"),
+                    "pillar": pillar_slug,
                 },
             }).execute()
 

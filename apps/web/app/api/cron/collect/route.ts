@@ -21,21 +21,60 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /** URL do endpoint /run no Render Web Service */
-const RENDER_RUN_URL =
-    process.env.RENDER_RUN_URL ||
-    "https://observatorio-ciseb.onrender.com/run";
+const RENDER_RUN_URL = process.env.RENDER_RUN_URL;
+if (!RENDER_RUN_URL) {
+    throw new Error(
+        "RENDER_RUN_URL não configurado. Defina a variável no Vercel antes do deploy."
+    );
+}
 
-/** Segredo compartilhado entre Vercel cron e Render */
-const CRON_SECRET =
-    process.env.CRON_SECRET || "observatorio-ciseb-f1-2026";
+/**
+ * Segredo compartilhado entre Vercel cron e Render.
+ * ⚠️ FAIL-CLOSED: sem fallback hardcoded. Se a env var faltar, o módulo
+    recusa carregar em vez de abrir com senha padrão.
+ */
+const CRON_SECRET = process.env.CRON_SECRET;
+if (!CRON_SECRET) {
+    throw new Error(
+        "CRON_SECRET não configurado. Defina a variável no Vercel antes do deploy."
+    );
+}
+
+/**
+ * Compara dois tokens em tempo constante para mitigar timing attacks.
+ * Usa Web Crypto subtle (disponível em runtime Vercel/Edge).
+ */
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+    const enc = new TextEncoder();
+    const aBytes = enc.encode(a);
+    const bBytes = enc.encode(b);
+    if (aBytes.length !== bBytes.length) {
+        return false;
+    }
+    // crypto.subtle.digest é suportado no Vercel Node runtime
+    const diff = new Uint8Array(aBytes.length);
+    for (let i = 0; i < aBytes.length; i++) {
+        diff[i] = aBytes[i] ^ bBytes[i];
+    }
+    return diff.every((b) => b === 0);
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
     // ── Verificação de autorização ──────────────────────────────────
     const authHeader = request.headers.get("authorization");
 
-    if (!authHeader || authHeader !== `Bearer ${CRON_SECRET}`) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return NextResponse.json(
-            { error: "Unauthorized" },
+            { error: "Unauthorized — Bearer token required" },
+            { status: 401 }
+        );
+    }
+
+    const token = authHeader.slice("Bearer ".length);
+    const isValid = await timingSafeEqual(token, CRON_SECRET);
+    if (!isValid) {
+        return NextResponse.json(
+            { error: "Unauthorized — invalid token" },
             { status: 401 }
         );
     }

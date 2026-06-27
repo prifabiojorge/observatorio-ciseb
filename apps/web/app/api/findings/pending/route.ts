@@ -4,27 +4,29 @@
  * Lista os top 10 findings com status "scored" para revisão humana,
  * enriquecidos com os scores por pilar.
  *
+ * 🔒 AUTENTICAÇÃO OBRIGATÓRIA: Bearer CRON_SECRET no header Authorization.
+ *    Previne acesso público a findings ainda não curados (status='scored').
+ *
  * ⚠️ Exceção MVP: usa SUPABASE_SERVICE_ROLE_KEY (bypass RLS).
  *    A política RLS para ANON só permite status IN ('reviewed','delivered'),
  *    mas o dashboard precisa ler status='scored' para revisão.
- *    Em produção, migrar para um token de serviço dedicado com RLS customizada.
  *
  * GET /api/findings/pending
  *
+ * Headers:
+ *   Authorization: Bearer <CRON_SECRET>
+ *
  * Responses:
  *   200 — Array de findings com scores aninhados
+ *   401 — Token inválido ou ausente
  *   500 — Erro de banco de dados
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 /**
  * Cliente Supabase com SERVICE_ROLE_KEY — bypass RLS.
- *
- * Motivo: a política `anon_read_findings` (003_rls.sql:48) restringe
- * ANON a `status IN ('reviewed','delivered')`, mas o dashboard de
- * revisão humana precisa ler `status='scored'`.
  *
  * ⚠️ Esta chave NUNCA deve ser exposta ao client-side.
  *    A rota é server-only (Next.js API Route) e a variável de ambiente
@@ -35,7 +37,46 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(): Promise<NextResponse> {
+/**
+ * Segredo compartilhado — fail-closed, sem fallback.
+ */
+const CRON_SECRET = process.env.CRON_SECRET;
+if (!CRON_SECRET) {
+    throw new Error(
+        "CRON_SECRET não configurado. Defina a variável no Vercel antes do deploy."
+    );
+}
+
+/** Compara tokens em tempo constante (mitiga timing attacks). */
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+    const enc = new TextEncoder();
+    const aBytes = enc.encode(a);
+    const bBytes = enc.encode(b);
+    if (aBytes.length !== bBytes.length) return false;
+    const diff = new Uint8Array(aBytes.length);
+    for (let i = 0; i < aBytes.length; i++) {
+        diff[i] = aBytes[i] ^ bBytes[i];
+    }
+    return diff.every((b) => b === 0);
+}
+
+/** Verifica o header Authorization. Retorna true se válido, false caso contrário. */
+async function isAuthorized(request: NextRequest): Promise<boolean> {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
+    const token = authHeader.slice("Bearer ".length);
+    return timingSafeEqual(token, CRON_SECRET);
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+    // ── Autenticação ────────────────────────────────────────────────
+    if (!(await isAuthorized(request))) {
+        return NextResponse.json(
+            { error: "Unauthorized — Bearer CRON_SECRET required" },
+            { status: 401 }
+        );
+    }
+
     // ── 1. Buscar findings scored ──────────────────────────────────
     const { data: findings, error } = await supabase
         .from("findings")

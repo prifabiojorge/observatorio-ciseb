@@ -12,15 +12,33 @@ from main import main as run_pipeline
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Observatório CISEB Worker", version="0.1.0")
 
-CRON_SECRET = os.environ.get("CRON_SECRET", "observatorio-ciseb-f1-2026")
+# ⚠️ FAIL-CLOSED: sem fallback. Se CRON_SECRET não estiver no ambiente,
+# o serviço recusa iniciar em vez de abrir com senha padrão.
+# Este valor NUNCA deve ser hardcoded no repositório.
+CRON_SECRET = os.environ.get("CRON_SECRET")
+if not CRON_SECRET:
+    raise RuntimeError(
+        "CRON_SECRET não configurado no ambiente. "
+        "Defina a variável CRON_SECRET no Render/Vercel antes de iniciar. "
+        "Recusa a iniciar sem autenticação (fail-closed)."
+    )
+
 security = HTTPBearer(auto_error=False)
 
 
 def verify_cron(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> bool:
-    """Verifica se a requisição tem o token CRON_SECRET."""
-    if credentials and credentials.credentials == CRON_SECRET:
-        return True
-    raise HTTPException(status_code=401, detail="Unauthorized — CRON_SECRET required")
+    """
+    Verifica se a requisição tem o token CRON_SECRET no header Authorization.
+    
+    Usa comparação em tempo constante (hmac.compare_digest) para mitigar
+    timing attacks na validação do token.
+    """
+    import hmac
+    if not credentials or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Unauthorized — Bearer token required")
+    if not hmac.compare_digest(credentials.credentials, CRON_SECRET):
+        raise HTTPException(status_code=401, detail="Unauthorized — invalid CRON_SECRET")
+    return True
 
 
 @app.get("/health")
