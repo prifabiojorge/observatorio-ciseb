@@ -30,15 +30,10 @@ if (!RENDER_RUN_URL) {
 
 /**
  * Segredo compartilhado entre Vercel cron e Render.
- * ⚠️ FAIL-CLOSED: sem fallback hardcoded. Se a env var faltar, o módulo
-    recusa carregar em vez de abrir com senha padrão.
+ * ⚠️ FAIL-CLOSED via runtime check — se a env var faltar,
+ * todas as requisições serão rejeitadas como 401.
  */
-const CRON_SECRET = process.env.CRON_SECRET;
-if (!CRON_SECRET) {
-    throw new Error(
-        "CRON_SECRET não configurado. Defina a variável no Vercel antes do deploy."
-    );
-}
+const CRON_SECRET = process.env.CRON_SECRET || "";
 
 /**
  * Compara dois tokens em tempo constante para mitigar timing attacks.
@@ -71,6 +66,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const token = authHeader.slice("Bearer ".length);
+    if (!token || !CRON_SECRET) {
+        return NextResponse.json(
+            { error: "Unauthorized — missing credentials" },
+            { status: 401 }
+        );
+    }
     const isValid = await timingSafeEqual(token, CRON_SECRET);
     if (!isValid) {
         return NextResponse.json(
