@@ -93,10 +93,16 @@ export async function POST(request: NextRequest) {
             .eq("id", id);
 
         if (updateError) {
-            console.error(
-                `[decide] Estado inconsistente: review inserida para ${id} ` +
-                `mas findings.status não atualizado: ${updateError.message}`
-            );
+            // ⚠️ Estado inconsistente: review inserida mas findings.status não atualizado.
+            // Em produção, este evento deve ser capturado por sistema de monitoramento
+            // (Sentry, DataDog, etc.). Por ora, logamos apenas em desenvolvimento.
+            if (process.env.NODE_ENV === 'development') {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `[decide] Estado inconsistente: review inserida para ${id} ` +
+                    `mas findings.status não atualizado: ${updateError.message}`
+                );
+            }
             return NextResponse.json(
                 { error: "Review inserted but finding status update failed", id },
                 { status: 500 }

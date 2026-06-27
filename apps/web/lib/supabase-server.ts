@@ -10,6 +10,25 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
+ * Tipo para o parâmetro cookiesToSet do @supabase/ssr.
+ * Compatível com `CookieOptions` da biblioteca — mantido inline para evitar
+ * dependência de importação de tipos internos.
+ */
+type CookieToSet = {
+    name: string;
+    value: string;
+    options?: {
+        domain?: string;
+        path?: string;
+        sameSite?: 'strict' | 'lax' | 'none';
+        secure?: boolean;
+        httpOnly?: boolean;
+        maxAge?: number;
+        expires?: Date;
+    };
+};
+
+/**
  * Cria cliente Supabase para uso em Server Components e Route Handlers.
  * Lê tokens de sessão dos cookies (gerenciados pelo @supabase/ssr).
  */
@@ -23,7 +42,7 @@ export async function createServerClientFromCookies() {
                 getAll() {
                     return cookieStore.getAll();
                 },
-                setAll(cookiesToSet) {
+                setAll(cookiesToSet: CookieToSet[]) {
                     try {
                         cookiesToSet.forEach(({ name, value, options }) =>
                             cookieStore.set(name, value, options)
@@ -41,6 +60,10 @@ export async function createServerClientFromCookies() {
 /**
  * Cria cliente Supabase para uso em middleware (Edge Runtime).
  * Recebe request/response para manipular cookies.
+ *
+ * ATENÇÃO: Cada cookie do array deve ser aplicado tanto a `request.cookies`
+ * quanto a `response.cookies` para que a sessão persista no ciclo de vida
+ * completo da requisição Edge.
  */
 export function createMiddlewareClient(request: NextRequest, response: NextResponse) {
     return createServerClient(
@@ -51,17 +74,19 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
                 getAll() {
                     return request.cookies.getAll();
                 },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value }) =>
-                        request.cookies.set(name, value)
-                    );
-                    response.cookies.set({
-                        name,
-                        value,
-                        httpOnly: true,
-                        sameSite: 'lax',
-                        secure: process.env.NODE_ENV === 'production',
-                        path: '/',
+                setAll(cookiesToSet: CookieToSet[]) {
+                    // Aplica cada cookie em request E response, preservando
+                    // opções de segurança (httpOnly, sameSite, secure, path).
+                    // As opções do Supabase (se houver) são mergeadas via spread.
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        request.cookies.set(name, value);
+                        response.cookies.set(name, value, {
+                            httpOnly: true,
+                            sameSite: 'lax',
+                            secure: process.env.NODE_ENV === 'production',
+                            path: '/',
+                            ...options, // sobrescreve defaults se Supabase especificar
+                        });
                     });
                 },
             },
