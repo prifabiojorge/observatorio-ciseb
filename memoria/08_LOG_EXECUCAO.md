@@ -12,9 +12,9 @@
 
 | Item | Status |
 |------|--------|
-| **Fase atual** | Fase 3 concluída — CHECKPOINT F3.1 ATINGIDO |
-| **Último checkpoint** | F3.1 — ✅ COMPLETO (30 scored, 6 embeddings, ~US$0.015) |
-| **Próximo passo** | Iniciar Fase 4 — Entrega + Revisão Humana |
+| **Fase atual** | Fase 4 concluída — CHECKPOINT F4.1 ATINGIDO |
+| **Último checkpoint** | F4.1 — ✅ COMPLETO (dashboard, alertas, digest) |
+| **Próximo passo** | Fase 5 — Operação Contínua + Loops de Aprendizado (ou manter MVP) |
 | **Bloqueadores** | Nenhum |
 
 ---
@@ -99,6 +99,23 @@
 [2026-06-26 23:44] [ORQUESTRADOR] 🎉 CHECKPOINT F3.1 ATINGIDO: 30 scored, 6 embeddings, custo ~US$0.015.
 ```
 
+### 2026-06-27 — Fase 4: Entrega + Revisão Humana concluída
+
+```
+[2026-06-27 00:17] [HARNESS] FASE 4: 4 rotas API Vercel + dashboard + alertas + digest implementados.
+[2026-06-27 00:22] [ORQUESTRADOR] Commit 6837b92: Fase 4 completa.
+[2026-06-27 00:24] [HARNESS] Render deploy Fase 4: api.py com auth + digest live.
+[2026-06-27 00:56] [ORQUESTRADOR] Vercel deploy trigger: ajuste Root Directory + Framework.
+[2026-06-27 01:11] [ORQUESTRADOR] vercel.json ajustado para Hobby tier (1 cron/dia).
+[2026-06-27 01:22] [HARNESS] Build Vercel corrigido (TS error + serverActions obsoleto).
+[2026-06-27 01:23] [HARNESS] Vercel deploy SUCCESS: dashboard live em observatorio-ciseb.vercel.app.
+[2026-06-27 01:27] [ORQUESTRADOR] RLS corrigido: pending route usa SERVICE_ROLE_KEY para ler 'scored'.
+[2026-06-27 01:31] [HARNESS] Dashboard validado: 10 findings exibidos com scores e botões Aprovar/Rejeitar.
+[2026-06-27 01:39] [ADVOGADO DO USUÁRIO] Aprovar testado: "IA na escola" [91] → status 'reviewed'.
+[2026-06-27 01:48] [HARNESS] Alertas Telegram Fase 4: 5 enviados ([95][95][95][95][85]) com application_suggestion.
+[2026-06-27 01:48] [ORQUESTRADOR] 🎉 CHECKPOINT F4.1 ATINGIDO: 4/4 critérios.
+```
+
 ---
 
 ## Inventário de contas e serviços
@@ -122,7 +139,7 @@
 | F1.1 | `[x] COMPLETO` | 2026-06-26 | Finding no DB✅ Telegram✅ Pipeline vivo✅ |
 | F2.1 | `[x] COMPLETO` | 2026-06-26 | 123 findings, 4 famílias ≥5 (web, github, academic, events) |
 | F3.1 | `[x] COMPLETO` | 2026-06-26 | 30 scored ✅ 6 embeddings ✅ scores ✅ custo $0.015 ✅ |
-| F4.1 | `[ ] Pendente` | — | Entrega ponta-a-ponta |
+| F4.1 | `[x] COMPLETO` | 2026-06-27 | Dashboard✅ Aprovar✅ Alertas 5✅ Cron✅ |
 
 ---
 
@@ -162,5 +179,5 @@
 
 ---
 
-> **Última atualização**: 2026-06-26T23:54:00-03:00
-> **Próxima ação**: Iniciar Fase 4 — Entrega + Revisão Humana
+> **Última atualização**: 2026-06-27T01:48:00-03:00
+> **Próxima ação**: Iniciar Fase 5 — Operação Contínua + Loops de Aprendizado (ou manter MVP)
