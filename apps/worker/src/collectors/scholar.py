@@ -39,6 +39,10 @@ class ScholarCollector(BaseCollector):
         """
         Pesquisa cada query configurada e coleta até 5 publicações por query.
 
+        7.2 (auditoria Harness 2026-06-27): adicionado asyncio.sleep(5) entre
+        queries para evitar banimento por IP no Google Scholar. Sem isto,
+        5 queries em sequência podem disparar CAPTCHA ou bloqueio temporário.
+
         Um erro em uma query não interrompe a coleta das demais.
         """
         findings: list[RawFinding] = []
@@ -48,6 +52,8 @@ class ScholarCollector(BaseCollector):
                 findings.extend(items)
             except Exception as exc:
                 print(f"[scholar] Erro na query '{query}': {exc}")
+            # Rate limiting: 5s entre queries (Google Scholar é sensível a scraping)
+            await asyncio.sleep(5)
         return findings
 
     # ------------------------------------------------------------------
