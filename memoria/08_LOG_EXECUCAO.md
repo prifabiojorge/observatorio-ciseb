@@ -301,6 +301,41 @@ automaticamente. Confirmar em Sentry que issues foram resolvidas.
 
 ---
 
+### 2026-06-27 — Fase 7.4: Redirect raiz → /dashboard (CORRIGIDO)
+
+> Acessar https://observatorio-ciseb.vercel.app retornava 404 porque não
+> havia page.tsx na raiz do app router. Corrigido com redirect 308 (permanent).
+
+```
+[2026-06-27 16:40] [ADVOGADO DO USUÁRIO] URL raiz retornando 404 — UX ruim.
+[2026-06-27 16:40] [ARQUITETO] Decisão: redirect 301 (permanent, SEO friendly)
+                    em vez de página de boas-vindas (frictionless).
+[2026-06-27 16:41] [ARQUITETO] Implementação via next.config.mjs redirects().
+[2026-06-27 16:41] [HARNESS] tsc --noEmit: 0 errors.
+[2026-06-27 16:41] [HARNESS] Sintaxe next.config.mjs validada.
+[2026-06-27 16:45] [ORQUESTRADOR] Commit + push + merge (ac668d4).
+[2026-06-27 16:43] [HARNESS] Validação produção:
+                    HTTP 308 (Next.js permanent redirect)
+                    Location: /dashboard
+                    Fluxo: / → /dashboard → (sem sessão) → /login
+[2026-06-27 16:43] [ORQUESTRADOR] 🎉 CHECKPOINT F7.4 ATINGIDO: URL raiz funcional.
+```
+
+**Arquivos modificados:**
+- `apps/web/next.config.mjs` (adicionado `redirects()` com source `/` → destination `/dashboard`)
+
+**Fluxo completo de navegação:**
+1. Usuário acessa `observatorio-ciseb.vercel.app`
+2. Vercel retorna HTTP 308 → `/dashboard`
+3. Middleware detecta sem sessão → redirect 307 → `/login?redirect=/dashboard`
+4. Usuário faz login (magic link ou Google)
+5. Após login, volta para `/dashboard`
+
+**Nota técnica:** Next.js usa 308 (Permanent Redirect) em vez de 301 para
+preservar método HTTP. SEO-equivalente.
+
+---
+
 ## Inventário de contas e serviços
 
 | Serviço | Conta criada? | Config feita? | Notas |
@@ -329,6 +364,7 @@ automaticamente. Confirmar em Sentry que issues foram resolvidas.
 | F7.1 | `[x] COMPLETO` | 2026-06-27 | Sentry integrado web+worker✅ 40 testes✅ fail-safe validado✅ |
 | F7.2 | `[x] COMPLETO` | 2026-06-27 | Bug HF API corrigido✅ 15 novos testes embeddings✅ 55/55 testes✅ |
 | F7.3 | `[x] COMPLETO` | 2026-06-27 | CI 100% verde✅ ruff+tsc+jest✅ 64 testes total✅ |
+| F7.4 | `[x] COMPLETO` | 2026-06-27 | Redirect 308 raiz→/dashboard✅ URL raiz funcional✅ |
 
 ---
 
