@@ -21,9 +21,10 @@ class TestComputeScore:
     def test_score_maximo_para_finding_perfeito(self):
         """Todos flags True → dimensões máximas → score próximo de 100.
 
-        Nota: dim_level=80 quando audience presente (não 100), então
-        score composto = 100*0.30+100*0.20+100*0.20+100*0.15+80*0.10+100*0.05
-                       = 30+20+20+15+8+5 = 98
+        Fase 8.1 (auditoria Harness 2026-06-29): novos pesos.
+        dim_level=80 quando audience presente (não 100), então
+        score composto = 100*0.25+100*0.20+100*0.20+100*0.15+80*0.05+100*0.15
+                       = 25+20+20+15+4+15 = 99
         """
         enriched = {
             "pillars": [{"slug": "ia", "confidence": 1.0}],
@@ -34,7 +35,7 @@ class TestComputeScore:
             "_dim_novelty": 100,
         }
         sc = compute_score(enriched, {})
-        assert sc["score_composite"] == 98  # 80 em dim_level reduz de 100
+        assert sc["score_composite"] == 99  # 80 em dim_level reduz de 100
         assert sc["dim_alignment"] == 100
         assert sc["dim_br_luso"] == 100
         assert sc["dim_replicable"] == 100
@@ -59,15 +60,37 @@ class TestComputeScore:
         assert sc["dim_practical"] == 40
         assert sc["dim_level"] == 50  # audience None → 50
         assert sc["dim_novelty"] == 30
-        # Score = 0*0.30 + 30*0.20 + 30*0.20 + 40*0.15 + 50*0.10 + 30*0.05
-        #       = 0 + 6 + 6 + 6 + 5 + 1.5 = 24.5 → 24 (int(round(24.5)) = 24 em Python)
-        assert sc["score_composite"] == 24
+        # Fase 8.1: novos pesos (0.25 + 0.20 + 0.20 + 0.15 + 0.05 + 0.15)
+        # Score = 0*0.25 + 30*0.20 + 30*0.20 + 40*0.15 + 50*0.05 + 30*0.15
+        #       = 0 + 6 + 6 + 6 + 2.5 + 4.5 = 25 → 25
+        assert sc["score_composite"] == 25
 
     def test_pesos_da_formula_somam_1(self):
-        """Os pesos 0.30+0.20+0.20+0.15+0.10+0.05 devem somar 1.0."""
+        """Fase 8.1: pesos 0.25+0.20+0.20+0.15+0.05+0.15 devem somar 1.0."""
         # Documentado em memoria/03_SCHEMA_BANCO.md
-        pesos = [0.30, 0.20, 0.20, 0.15, 0.10, 0.05]
+        pesos = [0.25, 0.20, 0.20, 0.15, 0.05, 0.15]
         assert sum(pesos) == pytest.approx(1.0)
+
+    def test_novelry_peso_aumentado_fase_8_1(self):
+        """Fase 8.1: novelty agora tem peso 0.15 (era 0.05 antes).
+
+        Validar que aumentar dim_novelty de 30 para 100 aumenta o score
+        em pelo menos 7 pontos (era ~3.5 pontos antes da Fase 8.1).
+        """
+        base = {
+            "pillars": [{"slug": "ia", "confidence": 0.85}],
+            "geo_br": True,
+            "replicable": True,
+            "practical_project": True,
+            "audience": "basica",
+        }
+        enriched_old = {**base, "_dim_novelty": 30}
+        enriched_new = {**base, "_dim_novelty": 100}
+        sc_old = compute_score(enriched_old, {})
+        sc_new = compute_score(enriched_new, {})
+        assert sc_new["score_composite"] > sc_old["score_composite"]
+        # Diferença: (100 - 30) * 0.15 = 70 * 0.15 = 10.5 pontos
+        assert sc_new["score_composite"] - sc_old["score_composite"] >= 7
 
     def test_score_sempre_entre_0_e_100(self):
         """Score composto E dim_alignment nunca devem sair do intervalo [0, 100].
@@ -122,7 +145,10 @@ class TestComputeScore:
         assert sc["dim_alignment"] == 0  # max(len(pillars), 1) evita divisão por zero
 
     def test_threshold_alerta_75_eh_atingivel(self):
-        """Valida que findings brasileiros replicáveis podem atingir 75+."""
+        """Valida que findings brasileiros replicáveis podem atingir 75+.
+
+        Fase 8.1: novos pesos (0.25 + 0.20 + 0.20 + 0.15 + 0.05 + 0.15).
+        """
         enriched = {
             "pillars": [{"slug": "ia", "confidence": 0.85}],
             "geo_br": True,
@@ -132,9 +158,9 @@ class TestComputeScore:
             "_dim_novelty": 80,
         }
         sc = compute_score(enriched, {})
-        # dim_alignment=85, dim_br=100, dim_rep=100, dim_pra=100, dim_lvl=80, dim_nov=80
-        # = 85*0.30 + 100*0.20 + 100*0.20 + 100*0.15 + 80*0.10 + 80*0.05
-        # = 25.5 + 20 + 20 + 15 + 8 + 4 = 92.5 → 93
+        # Fase 8.1: dim_alignment=85, dim_br=100, dim_rep=100, dim_pra=100, dim_lvl=80, dim_nov=80
+        # = 85*0.25 + 100*0.20 + 100*0.20 + 100*0.15 + 80*0.05 + 80*0.15
+        # = 21.25 + 20 + 20 + 15 + 4 + 12 = 92.25 → 92
         assert sc["score_composite"] >= 75  # deve disparar alerta Telegram
 
 

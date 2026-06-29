@@ -257,7 +257,9 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
             ).execute()
 
         stats["enriched"] += 1
-        if sc["score_composite"] >= 75:
+        # Fase 8.1: scored_high requer também dim_novelty >= 50 (achado ≤ 90 dias)
+        # Antes: apenas score_composite >= 75 → achados antigos ainda pontuavam
+        if sc["score_composite"] >= 75 and sc["dim_novelty"] >= 50:
             stats["scored_high"] += 1
         log.info(f"[main]   [{sc['score_composite']:>3}] {f['title'][:60]}...")
 
@@ -288,11 +290,11 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         stats["alerts_sent"] = 0
         return stats
 
-    # Busca os score_composite reais do banco para cada finding
+    # Busca os score_composite reais + dim_novelty do banco para cada finding
     finding_ids = [f["id"] for f in scored_findings]
     scores_data = (
         supabase.table("scores")
-        .select("finding_id, score_composite, pillar_id")
+        .select("finding_id, score_composite, pillar_id, dim_novelty")
         .in_("finding_id", finding_ids)
         .execute()
         .data
@@ -301,20 +303,27 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
     # Agrupa por finding_id e seleciona o score_composite máximo
     # (um finding pode ter múltiplos scores, um por pilar)
     score_by_finding: dict[str, int] = {}
+    novelty_by_finding: dict[str, int] = {}
     pillar_by_finding: dict[str, str] = {}
     for s in scores_data:
         fid = s["finding_id"]
         sc = int(s["score_composite"])
         if fid not in score_by_finding or sc > score_by_finding[fid]:
             score_by_finding[fid] = sc
+            novelty_by_finding[fid] = int(s.get("dim_novelty", 0))
             # pillar_id é UUID; precisamos do slug para o card
             pillar_by_finding[fid] = s.get("pillar_id", "")
 
     # Cache reverso pillar_id → slug (para exibição no card)
     pillar_id_to_slug = {v: k for k, v in _get_pillar_id_map().items()}
 
-    # Filtra apenas findings com score_composite ≥ 75 (threshold de alerta)
-    alert_candidates = [f for f in scored_findings if score_by_finding.get(f["id"], 0) >= 75]
+    # Fase 8.1: filtro duplo — score ≥ 75 E dim_novelty ≥ 50 (achado ≤ 90 dias)
+    # Antes: apenas score ≥ 75 → achados antigos ainda disparavam alerta
+    alert_candidates = [
+        f
+        for f in scored_findings
+        if score_by_finding.get(f["id"], 0) >= 75 and novelty_by_finding.get(f["id"], 0) >= 50
+    ]
     # Ordena por score decrescente (prioriza alertas mais relevantes)
     alert_candidates.sort(
         key=lambda f: score_by_finding.get(f["id"], 0),

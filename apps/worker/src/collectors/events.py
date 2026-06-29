@@ -23,6 +23,7 @@ from .base import BaseCollector, RawFinding
 # Fontes de eventos e editais (4 agências de fomento)
 # ---------------------------------------------------------------------------
 EVENT_SOURCES: list[dict] = [
+    # Agências de fomento (existentes)
     {
         "url": "https://www.gov.br/cnpq/pt-br/assuntos/noticias",
         "slug": "cnpq",
@@ -42,6 +43,12 @@ EVENT_SOURCES: list[dict] = [
         "url": "https://www.gov.br/capes/pt-br/assuntos/noticias",
         "slug": "capes",
         "name": "CAPES — Notícias",
+    },
+    # Fase 8.3: MCTI tem editais de IA e tecnologia
+    {
+        "url": "https://www.gov.br/mcti/pt-br/assuntos/noticias",
+        "slug": "mcti",
+        "name": "MCTI — Notícias (IA e Tecnologia)",
     },
 ]
 

@@ -68,5 +68,5 @@ Sistema de monitoramento em tempo real que captura, cura e entrega conteúdos de
 
 ---
 
-> **Última atualização**: 2026-06-27T16:45:00-03:00
-> **Atualizado por**: Agente do Harness (CHECKPOINT F7.4 — Redirect raiz→/dashboard. URL raiz funcional. 64 testes. Sistema 10/10 operacional com UX completa.)
+> **Última atualização**: 2026-06-29T11:00:00-03:00
+> **Atualizado por**: Agente do Harness (CHECKPOINT F8.1+F8.2+F8.3 — Freshness + YouTube + Cobertura IA. 84 testes. Queries diversificadas incl. Gemini/AI Studio.)

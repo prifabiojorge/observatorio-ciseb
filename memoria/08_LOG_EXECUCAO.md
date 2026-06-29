@@ -336,6 +336,82 @@ preservar método HTTP. SEO-equivalente.
 
 ---
 
+### 2026-06-29 — Fase 8: Freshness + YouTube + Cobertura IA
+
+> Fábio reportou 3 problemas em produção: achados antigos no Telegram,
+> nenhum finding de YouTube, nenhum finding de IA. Plano elaborado e
+> executado em única sessão.
+
+```
+[2026-06-29 09:30] [ADVOGADO DO USUÁRIO] Fábio reporta: achados antigos, sem YouTube, sem IA.
+[2026-06-29 09:35] [ARQUITETO] Diagnóstico:
+                    - Achados antigos: novelty peso 0.05 (insuficiente) + sem filtro de data nos coletores
+                    - Sem YouTube: Invidious offline, sem fallback para Data API v3
+                    - Sem IA: coletores não buscam conteúdo de IA (queries só robótica/maker/3D)
+[2026-06-29 09:40] [ARQUITETO] Plano elaborado: PLANO-FASE8-FRESHNESS-IA-YOUTUBE.md (600+ linhas).
+
+[2026-06-29 10:00] [HARNESS] F8.1.1: peso de novelty aumentado 0.05 → 0.15 em classifier.py.
+[2026-06-29 10:00] [HARNESS] F8.1.1: testes atualizados (22/22 passando com novos pesos).
+[2026-06-29 10:05] [HARNESS] F8.1.2: gate de freshness em main.py — dim_novelty ≥ 50 para alertas.
+[2026-06-29 10:10] [HARNESS] F8.1.3: filtro pub_year em scholar.py (≥ ano atual - 1).
+[2026-06-29 10:15] [HARNESS] F8.1.4: filtro pushed:>90 dias em github.py.
+[2026-06-29 10:20] [HARNESS] F8.1.5: filtro published_parsed ≥ 30 dias em web_rss.py.
+[2026-06-29 10:25] [HARNESS] F8.1.6: filtro created_utc ≥ 7 dias em forums.py.
+
+[2026-06-29 10:30] [ARQUITETO] F8.2: youtube.py reescrito com YouTube Data API v3 (primário) + Invidious (fallback 6 instâncias).
+[2026-06-29 10:30] [ARQUITETO] F8.2: filtro publishedAfter=30 dias + order=date na API v3.
+[2026-06-29 10:35] [ARQUITETO] F8.2: YOUTUBE_API_KEY adicionada ao .env.example.
+
+[2026-06-29 10:40] [ARQUITETO] F8.3: queries diversificadas em todos coletores:
+                    - scholar.py: +8 queries (ChatGPT, Gemini, AI Studio, LLM, ML, prompt engineering)
+                    - github.py: +10 topics (ai-education, chatgpt-education, gemini-education, ai-studio, llm-education, etc)
+                    - youtube.py: +5 queries (IA educação, ChatGPT professores, Gemini AI, AI Studio, IA sala de aula)
+                    - forums.py: +9 subreddits (MachineLearning, ChatGPT, GeminiAI, LocalLLaMA, PromptEngineering, etc)
+                    - web_rss.py: +4 feeds (TecnoBlog, Olhar Digital, Canal Tech, Conexão Planeta)
+                    - events.py: +1 fonte (MCTI — editais de IA)
+[2026-06-29 10:45] [ARQUITETO] F8.3: SYSTEM_PROMPT do classifier atualizado para reconhecer IA:
+                    - Menção explícita a ChatGPT, Gemini, Google AI Studio, LLMs, ML, IA generativa
+                    - Regra 5: conteúdo de IA deve ter confidence ≥ 0.70 no pilar "ia"
+
+[2026-06-29 10:50] [HARNESS] 18 novos testes em test_freshness_filters.py:
+                    - TestScholarDateFilter (4): filtragem por pub_year
+                    - TestGithubDateFilter (2): filtro pushed:> + carregamento
+                    - TestForumsDateFilter (3): filtragem por created_utc
+                    - TestWebRssDateFilter (3): filtragem por published_parsed
+                    - TestYouTubeQueries (2): queries incluem IA/Gemini/AI Studio
+                    - TestScholarQueries (1): queries diversificadas
+                    - TestGithubTopics (1): topics de IA
+                    - TestForumsSubreddits (1): subreddits de IA
+                    - TestWebRssFeeds (1): feeds de tech BR
+                    - TestEventsSources (1): fonte MCTI
+[2026-06-29 10:55] [HARNESS] 🧪 Validação completa:
+                    - ruff check: All checks passed
+                    - pytest: 75/75 passando (55 anteriores + 18 novos + 2 de github filter)
+                    - tsc --noEmit: 0 errors
+[2026-06-29 11:00] [ORQUESTRADOR] 🎉 CHECKPOINT F8.1 + F8.2 + F8.3 ATINGIDOS.
+```
+
+**Arquivos modificados:**
+- `apps/worker/src/llm/classifier.py` (pesos novelty + SYSTEM_PROMPT IA)
+- `apps/worker/src/main.py` (gate freshness alertas + query dim_novelty)
+- `apps/worker/src/collectors/scholar.py` (filtro pub_year + 8 queries IA)
+- `apps/worker/src/collectors/github.py` (filtro pushed:> + 10 topics IA)
+- `apps/worker/src/collectors/web_rss.py` (filtro published_parsed + 4 feeds tech)
+- `apps/worker/src/collectors/forums.py` (filtro created_utc + 9 subreddits IA)
+- `apps/worker/src/collectors/youtube.py` (rewrite completo: Data API v3 + Invidious + 5 queries IA)
+- `apps/worker/src/collectors/events.py` (fonte MCTI)
+- `apps/worker/tests/test_classifier.py` (testes atualizados para novos pesos)
+- `apps/worker/tests/test_freshness_filters.py` (NOVO — 18 testes)
+- `.env.example` (YOUTUBE_API_KEY)
+
+**Total de testes:** 75 pytest + 9 jest = **84 testes automatizados**.
+
+**⚠️ AÇÃO PENDENTE (Fábio)**: configurar `YOUTUBE_API_KEY` no Render.
+Sem isto, coletor YouTube usa Invidious fallback (instável).
+Criar key em: https://console.cloud.google.com/ → habilitar YouTube Data API v3.
+
+---
+
 ## Inventário de contas e serviços
 
 | Serviço | Conta criada? | Config feita? | Notas |
@@ -365,6 +441,9 @@ preservar método HTTP. SEO-equivalente.
 | F7.2 | `[x] COMPLETO` | 2026-06-27 | Bug HF API corrigido✅ 15 novos testes embeddings✅ 55/55 testes✅ |
 | F7.3 | `[x] COMPLETO` | 2026-06-27 | CI 100% verde✅ ruff+tsc+jest✅ 64 testes total✅ |
 | F7.4 | `[x] COMPLETO` | 2026-06-27 | Redirect 308 raiz→/dashboard✅ URL raiz funcional✅ |
+| F8.1 | `[x] COMPLETO` | 2026-06-29 | Freshness: peso novelty 0.15 + gate dim_novelty≥50 + filtros data✅ |
+| F8.2 | `[x] COMPLETO` | 2026-06-29 | YouTube Data API v3 + fallback Invidious✅ (pendente config API key) |
+| F8.3 | `[x] COMPLETO` | 2026-06-29 | Cobertura IA: queries diversificadas (ChatGPT, Gemini, AI Studio)✅ |
 
 ---
 
