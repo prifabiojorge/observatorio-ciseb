@@ -12,7 +12,7 @@ SYSTEM_PROMPT = """Você é um classificador de conteúdo educacional para o CIS
 Sua tarefa: ler um texto e retornar APENAS um JSON válido, sem comentários, sem markdown.
 
 Os 6 pilares CISEB são:
-- ia: Inteligência Artificial (personalização, automação, IA em educação)
+- ia: Inteligência Artificial (personalização, automação, IA em educação, ChatGPT, Gemini, Google AI Studio, LLMs, machine learning, IA generativa, prompt engineering, tutores inteligentes, assistentes educacionais baseados em IA)
 - maker: Cultura Maker (projetos práticos, construção, criatividade)
 - digital: Cultura Digital (RV, RA, experiências imersivas)
 - tech_art: Tecnologia e Arte (jogos, animações, pensamento computacional)
@@ -24,6 +24,9 @@ REGRAS:
 2. Atribua no mínimo 1 pilar com confiança >= 0.55.
 3. NÃO invente dados. Se não souber, use null.
 4. Retorne APENAS o JSON, sem texto adicional.
+5. Fase 8.3: conteúdo sobre ChatGPT, Gemini, Google AI Studio, LLMs, IA generativa,
+   machine learning, tutores inteligentes deve ser classificado como pilar "ia"
+   com confiança >= 0.70.
 
 Formato de saída:
 {
@@ -90,14 +93,17 @@ def compute_score(enriched: dict, finding: dict | None = None) -> dict:
     dim_pra = 100 if enriched.get("practical_project") else 40
     dim_lvl = 80 if enriched.get("audience") else 50
     dim_nov = enriched.get("_dim_novelty", 70)
+    # Fase 8.1 (auditoria Harness 2026-06-29): peso de novelty aumentado de 0.05 → 0.15
+    # para filtrar conteúdo stale. Pesos: 0.25 + 0.20 + 0.20 + 0.15 + 0.05 + 0.15 = 1.00
+    # Combinado com gate dim_novelty >= 50 para alertas Telegram (ver main.py).
     score = int(
         round(
-            dim_alignment * 0.30
+            dim_alignment * 0.25
             + dim_br * 0.20
             + dim_rep * 0.20
             + dim_pra * 0.15
-            + dim_lvl * 0.10
-            + dim_nov * 0.05
+            + dim_lvl * 0.05
+            + dim_nov * 0.15
         )
     )
     score = max(0, min(100, score))

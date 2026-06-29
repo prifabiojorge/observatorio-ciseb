@@ -11,6 +11,7 @@ Utiliza feedparser para parsing de RSS e trafilatura para extrair
 texto limpo do corpo completo dos artigos (fallback para summary).
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import feedparser
@@ -23,10 +24,32 @@ from .base import BaseCollector, RawFinding
 # Configuração dos feeds RSS
 # ---------------------------------------------------------------------------
 FEEDS: list[dict] = [
+    # Educação (existente)
     {
         "url": "https://porvir.org/feed/",
         "slug": "porvir-rss",
         "name": "Porvir - Inovações em Educação",
+    },
+    # Fase 8.3: Tecnologia/IA BR (diversificado)
+    {
+        "url": "https://tecnoblog.net/feed/",
+        "slug": "tecnoblog-rss",
+        "name": "TecnoBlog - Tecnologia BR",
+    },
+    {
+        "url": "https://olhardigital.com.br/feed/",
+        "slug": "olhardigital-rss",
+        "name": "Olhar Digital - Tecnologia BR",
+    },
+    {
+        "url": "https://canaltech.com.br/feed/",
+        "slug": "canaltech-rss",
+        "name": "Canal Tech - Tecnologia BR",
+    },
+    {
+        "url": "https://www.conexaoplaneta.com.br/feed/",
+        "slug": "conexaoplaneta-rss",
+        "name": "Conexão Planeta - Sustentabilidade e Educação",
     },
 ]
 
@@ -107,6 +130,17 @@ class WebRSSCollector(BaseCollector):
         title = (entry.get("title") or "Sem título").strip()
         link = entry.get("link") or ""
         raw_text = entry.get("summary") or entry.get("description") or ""
+
+        # Fase 8.1: filtrar entries com mais de 30 dias
+        # Antes: retornava entries antigas ainda listadas no feed
+        published_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
+        if published_parsed:
+            try:
+                pub_date = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+                if pub_date < datetime.now(timezone.utc) - timedelta(days=30):
+                    return None
+            except (TypeError, ValueError):
+                pass  # data inválida, manter finding
 
         # Tenta extrair o texto completo do artigo original
         if link:

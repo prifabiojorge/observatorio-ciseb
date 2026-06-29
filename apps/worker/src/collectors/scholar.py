@@ -11,6 +11,7 @@ considere executar em um thread executor para não bloquear o event loop.
 """
 
 import asyncio
+from datetime import datetime, timezone
 
 from scholarly import scholarly
 
@@ -20,11 +21,21 @@ from .base import BaseCollector, RawFinding
 # Queries de busca — palavras-chave em português focadas no observatório
 # ---------------------------------------------------------------------------
 QUERIES: list[str] = [
+    # Robótica / Maker / 3D / Pensamento Computacional (existentes)
     "robótica educacional Brasil",
     "cultura maker educação",
     "realidade virtual ensino fundamental",
     "impressão 3D educação",
     "pensamento computacional escola pública",
+    # Fase 8.3: IA generativa (diversificado)
+    "inteligência artificial educação Brasil",
+    "ChatGPT sala de aula professores",
+    "IA generativa personalização aprendizado",
+    "machine learning ensino fundamental",
+    "Gemini AI educação",
+    "LLM tutor inteligente ensino",
+    "Google AI Studio educação",
+    "prompt engineering professores",
 ]
 
 
@@ -101,9 +112,20 @@ class ScholarCollector(BaseCollector):
         title = bib.get("title", "Sem título")
         abstract = bib.get("abstract", "")
         url = pub.get("pub_url") or pub.get("eprint_url") or ""
+        pub_year = bib.get("pub_year", "")
 
         if not title or title == "Sem título":
             return None
+
+        # Fase 8.1: filtrar publicações com mais de 1 ano
+        # Antes: retornava papers de qualquer época, causando alertas com conteúdo antigo
+        current_year = datetime.now(timezone.utc).year
+        if pub_year:
+            try:
+                if int(pub_year) < current_year - 1:
+                    return None
+            except (ValueError, TypeError):
+                pass  # ano inválido, manter finding
 
         return RawFinding(
             source_slug="scholar",

@@ -1,20 +1,22 @@
 """
-Coletor YouTube — busca vídeos educacionais via Invidious API pública.
+Coletor YouTube — busca vídeos educacionais.
 
-O Invidious é um proxy front-end para o YouTube que oferece uma API
-REST pública sem necessidade de API Key. Este coletor utiliza instâncias
-públicas do Invidious como fallback para garantir resiliência.
+Fase 8.2 (auditoria Harness 2026-06-29):
+- Primário: YouTube Data API v3 (oficial Google, 10k quota/dia gratuito)
+- Fallback: Invidious API (5 instâncias públicas)
+- Antes: apenas Invidious (0 findings desde F2.1)
 
-Cada query retorna até 3 vídeos. Com 4 queries, o potencial máximo é
-de 12 findings por rodada, visando alcançar ≥5 findings da família
-social para o CHECKPOINT F2.1.
+Estratégia:
+  1. Se YOUTUBE_API_KEY configurada → usar Data API v3
+  2. Se API falhar/quota exceder → tentar Invidious (5 instâncias)
+  3. Se nenhuma responder → retorna lista vazia
 
-Estratégia de fallback:
-  1. Tenta instância primária (slipfox.xyz)
-  2. Em caso de falha, tenta instância secundária (reallyaweso.me)
-  3. Se nenhuma responder, retorna lista vazia para a query
+Quota: 1 search = 100 units. 8 queries = 800 units/dia (limite 10k).
 """
 
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 from urllib.parse import quote_plus
 
 import httpx
@@ -22,132 +24,232 @@ import httpx
 from .base import BaseCollector, RawFinding
 
 # ---------------------------------------------------------------------------
-# Instâncias públicas do Invidious (ordenadas por preferência)
+# Configuração — YouTube Data API v3 (primário)
+# ---------------------------------------------------------------------------
+YOUTUBE_API_KEY: str = os.environ.get("YOUTUBE_API_KEY", "")
+YOUTUBE_API_URL: str = "https://www.googleapis.com/youtube/v3/search"
+
+# ---------------------------------------------------------------------------
+# Configuração — Invidious (fallback)
 # ---------------------------------------------------------------------------
 INVIDIOUS_INSTANCES: list[str] = [
+    "https://yewtu.be",
+    "https://invidious.nerdvpn.de",
+    "https://inv.nadeko.net",
+    "https://invidious.jing.rocks",
     "https://invidious.slipfox.xyz",
     "https://invidious.reallyaweso.me",
 ]
 
 # ---------------------------------------------------------------------------
-# Palavras-chave de busca em português
+# Palavras-chave de busca — diversificadas (Fase 8.3)
 # ---------------------------------------------------------------------------
 SEARCH_QUERIES: list[str] = [
+    # Robótica / Maker / 3D (existentes)
     "robótica educacional",
     "impressão 3D escola",
     "programação crianças scratch",
     "arduino projeto educativo",
+    # Fase 8.3: IA (diversificado)
+    "inteligência artificial educação",
+    "ChatGPT professores",
+    "Gemini AI Google educação",
+    "Google AI Studio tutorial",
+    "IA sala de aula ensino médio",
 ]
 
-# ---------------------------------------------------------------------------
-# Constantes de coleta
-# ---------------------------------------------------------------------------
 MAX_VIDEOS_PER_QUERY: int = 3
-INVIDIOUS_TIMEOUT: float = 15.0
+YOUTUBE_TIMEOUT: float = 15.0
 
 
 class YouTubeCollector(BaseCollector):
-    """Coletor de vídeos educacionais via Invidious API pública."""
+    """Coletor de vídeos educacionais via YouTube Data API v3 + Invidious fallback."""
 
     source_slug: str = "youtube"
-    source_name: str = "YouTube — Vídeos Educacionais (Invidious)"
+    source_name: str = "YouTube — Vídeos Educacionais (Data API v3 + Invidious)"
     family: str = "social"
 
     async def collect(self) -> list[RawFinding]:
         """
         Coleta vídeos para cada palavra-chave configurada.
 
-        Cada query é processada independentemente; um erro em uma query
-        não interrompe a coleta das demais. O mecanismo de fallback entre
-        instâncias Invidious garante resiliência contra indisponibilidade
-        de servidores proxy.
+        Estratégia Fase 8.2:
+        1. Se YOUTUBE_API_KEY configurada → Data API v3 (primário)
+        2. Se API falhar/quota exceder → Invidious (fallback)
+        3. Se nenhuma responder → lista vazia
 
         Returns:
             Lista de RawFinding para inserção no banco.
         """
         findings: list[RawFinding] = []
-        async with httpx.AsyncClient(
-            timeout=INVIDIOUS_TIMEOUT,
-            headers={"User-Agent": "ObservatorioCISEB/1.0"},
-        ) as client:
-            for query in SEARCH_QUERIES:
-                try:
-                    items = await self._search(client, query)
-                    findings.extend(items)
-                    print(f"[youtube] Query '{query}' → {len(items)} vídeos")
-                except Exception as exc:
-                    print(f"[youtube] Erro na query '{query}': {exc}")
+
+        for query in SEARCH_QUERIES:
+            try:
+                if YOUTUBE_API_KEY:
+                    items = await self._search_via_api(query)
+                    if items:
+                        findings.extend(items)
+                        continue  # API v3 sucesso, não tenta Invidious
+                # Fallback Invidious
+                items = await self._search_via_invidious(query)
+                findings.extend(items)
+            except Exception as exc:
+                print(f"[youtube] Erro na query '{query}': {exc}")
         return findings
 
     # ------------------------------------------------------------------
-    # Helpers internos
+    # Primário: YouTube Data API v3
     # ------------------------------------------------------------------
 
-    async def _search(self, client: httpx.AsyncClient, query: str) -> list[RawFinding]:
+    async def _search_via_api(self, query: str) -> list[RawFinding]:
         """
-        Busca vídeos via Invidious API com fallback entre instâncias.
+        Busca vídeos via YouTube Data API v3.
 
-        O endpoint utilizado é:
-          {instance}/api/v1/search?q={query}&type=video&sort=relevance
-
-        A API do Invidious é gratuita, não requer autenticação e retorna
-        JSON estruturado com campos como: title, videoId, author,
-        lengthSeconds, description.
-
-        Args:
-            client: Cliente HTTP compartilhado.
-            query: Palavra-chave de busca (será URL-encoded).
-
-        Returns:
-            Lista de RawFinding (até MAX_VIDEOS_PER_QUERY por query).
-            Lista vazia se nenhuma instância responder com sucesso.
+        Custo: 100 units por search. 8 queries = 800 units/dia (limite 10k).
+        Filtro: order=date + publishedAfter=últimos 30 dias (Fase 8.1).
         """
-        for instance in INVIDIOUS_INSTANCES:
-            try:
-                url = f"{instance}/api/v1/search?q={quote_plus(query)}&type=video&sort=relevance"
-                response = await client.get(url)
+        # Fase 8.1: apenas vídeos dos últimos 30 dias
+        published_after = (datetime.now(timezone.utc) - timedelta(days=30)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
 
-                if response.status_code != 200:
-                    print(f"[youtube] Invidious {instance} status {response.status_code}")
-                    continue  # Tenta próxima instância
+        params = {
+            "part": "snippet",
+            "q": query,
+            "type": "video",
+            "maxResults": MAX_VIDEOS_PER_QUERY,
+            "order": "date",  # mais recentes primeiro
+            "publishedAfter": published_after,
+            "relevanceLanguage": "pt",  # priorizar português
+            "key": YOUTUBE_API_KEY,
+        }
 
+        try:
+            async with httpx.AsyncClient(timeout=YOUTUBE_TIMEOUT) as client:
+                response = await client.get(YOUTUBE_API_URL, params=params)
+
+                if response.status_code == 403:
+                    # Quota excedida ou API key inválida
+                    print(
+                        f"[youtube] API v3 403 (quota/key) para query '{query}': "
+                        f"{response.text[:100]}"
+                    )
+                    return []
+
+                response.raise_for_status()
                 data = response.json()
 
                 items: list[RawFinding] = []
-                for video in data[:MAX_VIDEOS_PER_QUERY]:
-                    # Validação mínima: precisa de videoId e title
-                    video_id = video.get("videoId", "")
-                    title = video.get("title", "")
-                    if not video_id or not title:
+                for video in data.get("items", []):
+                    finding = self._parse_api_video(video, query)
+                    if finding is not None:
+                        items.append(finding)
+
+                print(f"[youtube] API v3 query '{query}' → {len(items)} vídeos")
+                return items
+
+        except Exception as exc:
+            print(f"[youtube] API v3 erro na query '{query}': {exc}")
+            return []
+
+    def _parse_api_video(self, video: dict, query: str) -> Optional[RawFinding]:
+        """Converte resultado da Data API v3 em RawFinding."""
+        video_id = video.get("id", {}).get("videoId", "")
+        if not video_id:
+            return None
+
+        snippet = video.get("snippet", {})
+        title = snippet.get("title", "").strip()
+        if not title:
+            return None
+
+        author = snippet.get("channelTitle", "Canal desconhecido")
+        description = snippet.get("description", "")[:500]
+        published_at = snippet.get("publishedAt", "")
+
+        return RawFinding(
+            source_slug="youtube",
+            source_url=f"https://youtube.com/watch?v={video_id}",
+            title=f"[YouTube] {title}",
+            raw_text=f"Vídeo: {title}. Canal: {author}. Publicado: {published_at}. {description}",
+            language="pt",
+            metadata={
+                "query": query,
+                "channel": author,
+                "platform": "youtube",
+                "published_at": published_at,
+                "video_id": video_id,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Fallback: Invidious
+    # ------------------------------------------------------------------
+
+    async def _search_via_invidious(self, query: str) -> list[RawFinding]:
+        """
+        Busca vídeos via Invidious API com fallback entre instâncias.
+
+        Usado quando YOUTUBE_API_KEY não configurada ou quota excedida.
+        """
+        async with httpx.AsyncClient(
+            timeout=YOUTUBE_TIMEOUT,
+            headers={"User-Agent": "ObservatorioCISEB/1.0"},
+        ) as client:
+            for instance in INVIDIOUS_INSTANCES:
+                try:
+                    url = (
+                        f"{instance}/api/v1/search"
+                        f"?q={quote_plus(query)}"
+                        f"&type=video"
+                        f"&sort_by=date"  # Fase 8.1: mais recentes primeiro
+                    )
+                    response = await client.get(url)
+
+                    if response.status_code != 200:
+                        print(f"[youtube] Invidious {instance} status {response.status_code}")
                         continue
 
-                    # Monta texto bruto com metadados do vídeo
-                    author = video.get("author", "Canal desconhecido")
-                    duration = video.get("lengthSeconds", 0)
-                    description = video.get("description", "")[:500]
+                    data = response.json()
+                    items: list[RawFinding] = []
+                    for video in data[:MAX_VIDEOS_PER_QUERY]:
+                        video_id = video.get("videoId", "")
+                        title = video.get("title", "")
+                        if not video_id or not title:
+                            continue
 
-                    finding = RawFinding(
-                        source_slug="youtube",
-                        source_url=(f"https://youtube.com/watch?v={video_id}"),
-                        title=f"[YouTube] {title}",
-                        raw_text=(
-                            f"Vídeo: {title}. Canal: {author}. Duração: {duration}s. {description}"
-                        ),
-                        language="pt",
-                        metadata={
-                            "query": query,
-                            "channel": author,
-                            "platform": "youtube",
-                            "duration_seconds": duration,
-                        },
-                    )
-                    items.append(finding)
+                        author = video.get("author", "Canal desconhecido")
+                        duration = video.get("lengthSeconds", 0)
+                        description = video.get("description", "")[:500]
+                        published_at = video.get("published", "")
 
-                return items  # Sucesso — não tenta outras instâncias
+                        finding = RawFinding(
+                            source_slug="youtube",
+                            source_url=f"https://youtube.com/watch?v={video_id}",
+                            title=f"[YouTube] {title}",
+                            raw_text=(
+                                f"Vídeo: {title}. "
+                                f"Canal: {author}. "
+                                f"Duração: {duration}s. "
+                                f"Publicado: {published_at}. "
+                                f"{description}"
+                            ),
+                            language="pt",
+                            metadata={
+                                "query": query,
+                                "channel": author,
+                                "platform": "youtube",
+                                "published_at": published_at,
+                                "duration_seconds": duration,
+                            },
+                        )
+                        items.append(finding)
 
-            except Exception as exc:
-                print(f"[youtube] Erro Invidious {instance}: {exc}")
-                continue  # Tenta próxima instância
+                    print(f"[youtube] Invidious {instance} query '{query}' → {len(items)} vídeos")
+                    return items
 
-        # Nenhuma instância respondeu com sucesso
+                except Exception as exc:
+                    print(f"[youtube] Erro Invidious {instance}: {exc}")
+                    continue
+
         return []

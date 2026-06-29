@@ -14,6 +14,8 @@ Subreddits monitorados (comunidades ativas e verificadas):
 - r/educationalgifs (GIFs educativos)
 """
 
+from datetime import datetime, timedelta, timezone
+
 import httpx
 
 from .base import BaseCollector, RawFinding
@@ -22,12 +24,23 @@ from .base import BaseCollector, RawFinding
 # Subreddits monitorados — comunidades ativas verificadas em 2026-06
 # ---------------------------------------------------------------------------
 SUBREDDITS: list[str] = [
+    # Programação / Maker / Robótica (existentes)
     "Python",
     "arduino",
     "3Dprinting",
     "robotics",
     "learnprogramming",
     "educationalgifs",
+    # Fase 8.3: IA generativa (diversificado)
+    "MachineLearning",
+    "artificial",
+    "ChatGPT",
+    "singularity",
+    "GeminiAI",
+    "GoogleGemini",
+    "LocalLLaMA",
+    "PromptEngineering",
+    "aieducation",
 ]
 
 
@@ -108,9 +121,20 @@ class ForumsCollector(BaseCollector):
         title = post_data.get("title", "").strip()
         selftext = post_data.get("selftext", "").strip()
         permalink = post_data.get("permalink", "")
+        created_utc = post_data.get("created_utc", 0)
 
         if not title:
             return None
+
+        # Fase 8.1: apenas posts dos últimos 7 dias (Reddit é muito dinâmico)
+        # Antes: retornava posts antigos ainda listados no /new
+        if created_utc:
+            try:
+                post_date = datetime.fromtimestamp(float(created_utc), tz=timezone.utc)
+                if post_date < datetime.now(timezone.utc) - timedelta(days=7):
+                    return None
+            except (TypeError, ValueError, OSError):
+                pass  # timestamp inválido, manter finding
 
         # Constrói URL completa do post
         full_url = f"https://www.reddit.com{permalink}" if permalink else ""

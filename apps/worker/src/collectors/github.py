@@ -11,6 +11,7 @@ impressao-3d-educacao, ensino-programacao, educational-technology.
 """
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -20,6 +21,7 @@ from .base import BaseCollector, RawFinding
 # Tópicos de busca — palavras-chave relevantes para o observatório
 # ---------------------------------------------------------------------------
 TOPICS: list[str] = [
+    # Robótica / Maker / 3D / Programação (existentes)
     "educational-robotics",
     "robotics-education",
     "microbit-education",
@@ -29,6 +31,17 @@ TOPICS: list[str] = [
     "impressao-3d-educacao",
     "ensino-programacao",
     "educational-technology",
+    # Fase 8.3: IA generativa (diversificado)
+    "ai-education",
+    "ai-teaching",
+    "chatgpt-education",
+    "llm-education",
+    "machine-learning-education",
+    "gemini-education",
+    "ai-studio",
+    "prompt-engineering-education",
+    "generative-ai-education",
+    "ai-tutor",
 ]
 
 
@@ -79,9 +92,12 @@ class GitHubCollector(BaseCollector):
         Returns:
             Lista de RawFinding (até 5 repositórios).
         """
+        # Fase 8.1: apenas repos atualizados nos últimos 90 dias
+        # Antes: retornava repos antigos, causando alertas com conteúdo stale
+        date_filter = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
         url = (
             f"https://api.github.com/search/repositories"
-            f"?q=topic:{topic}+language:pt"
+            f"?q=topic:{topic}+pushed:>{date_filter}"
             f"&sort=updated"
             f"&per_page=5"
         )
