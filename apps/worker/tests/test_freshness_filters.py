@@ -385,16 +385,31 @@ class TestForumsSubreddits:
 
 
 class TestWebRssFeeds:
-    """Fase 8.3: validar feeds de tech/IA BR."""
+    """Fase 8.3 + 8.5: validar feeds de tech/IA BR."""
 
     def test_feeds_incluem_tech_br(self):
-        """FEEDS deve incluir TecnoBlog, Olhar Digital, Canal Tech."""
+        """FEEDS deve incluir TecnoBlog, Olhar Digital (ativos)."""
         from collectors.web_rss import FEEDS
 
         slugs = [f["slug"] for f in FEEDS]
         assert "tecnoblog-rss" in slugs
         assert "olhardigital-rss" in slugs
-        assert "canaltech-rss" in slugs
+
+    def test_feeds_incluem_ia_br(self):
+        """Fase 8.5: deve incluir feeds de IA BR (Showmetech, IA Brasil)."""
+        from collectors.web_rss import FEEDS
+
+        slugs = [f["slug"] for f in FEEDS]
+        assert "showmetech-rss" in slugs
+        assert "ia-brasil-rss" in slugs
+
+    def test_feeds_nao_incluem_mortos(self):
+        """Fase 8.5: canaltech (404) e conexaoplaneta (403) removidos."""
+        from collectors.web_rss import FEEDS
+
+        slugs = [f["slug"] for f in FEEDS]
+        assert "canaltech-rss" not in slugs, "canaltech removido (404)"
+        assert "conexaoplaneta-rss" not in slugs, "conexaoplaneta removido (403)"
 
 
 class TestEventsSources:
