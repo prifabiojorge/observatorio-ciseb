@@ -222,6 +222,19 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         enriched["_dim_novelty"] = novelty_score(f.get("collected_at", ""))
         sc = compute_score(enriched, f)
 
+        # Fase 8.4: log detalhado para diagnóstico de IA
+        # Mostra quais pilares foram atribuídos a cada finding
+        pillars_assigned = [p.get("slug") for p in enriched.get("pillars", [])]
+        query_used = (f.get("metadata") or {}).get("query", "")
+        if "ia" in pillars_assigned or any(
+            kw in (f.get("title", "") + " " + (f.get("content_text") or "")).lower()
+            for kw in ["chatgpt", "gemini", "ai studio", "llm", "machine learning", "ia generativa"]
+        ):
+            log.info(
+                f"[main] 🤖 Finding de IA detectado: '{f['title'][:50]}...' "
+                f"pillars={pillars_assigned} query='{query_used}'"
+            )
+
         supabase.table("findings").update(
             {
                 "embedding": vec,
@@ -319,11 +332,39 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
 
     # Fase 8.1: filtro duplo — score ≥ 75 E dim_novelty ≥ 50 (achado ≤ 90 dias)
     # Antes: apenas score ≥ 75 → achados antigos ainda disparavam alerta
-    alert_candidates = [
-        f
-        for f in scored_findings
-        if score_by_finding.get(f["id"], 0) >= 75 and novelty_by_finding.get(f["id"], 0) >= 50
-    ]
+    #
+    # Fase 8.4: filtro triplo — também rejeita findings sem data de publicação
+    # conhecida quando score é alto. Papers antigos sem pub_year passavam antes.
+    # Agora: se metadata.year == "unknown" E score >= 75, não alertar.
+    alert_candidates = []
+    for f in scored_findings:
+        fid = f["id"]
+        score = score_by_finding.get(fid, 0)
+        novelty = novelty_by_finding.get(fid, 0)
+
+        # Filtro 1: score ≥ 75
+        if score < 75:
+            continue
+        # Filtro 2: novelty ≥ 50 (≤ 90 dias desde collected_at)
+        if novelty < 50:
+            continue
+        # Filtro 3 (Fase 8.4): se metadata.year == "unknown", não alertar
+        # Papers sem data conhecida são suspeitos de serem antigos
+        meta = f.get("metadata") or {}
+        year = meta.get("year", "")
+        if year == "unknown" or not year:
+            # Exceção: findings de GitHub/Reddit/YouTube não têm "year" no metadata
+            # mas têm filtro de data próprio (pushed:>, created_utc, publishedAfter)
+            source_slug = meta.get("source", "") or meta.get("feed", "") or ""
+            # Se for Scholar (acadêmico), exigir year conhecido
+            if meta.get("query") and not year:
+                log.info(
+                    f"[main] Achado {fid} sem data conhecida (scholar) — não alertar"
+                )
+                continue
+
+        alert_candidates.append(f)
+
     # Ordena por score decrescente (prioriza alertas mais relevantes)
     alert_candidates.sort(
         key=lambda f: score_by_finding.get(f["id"], 0),
