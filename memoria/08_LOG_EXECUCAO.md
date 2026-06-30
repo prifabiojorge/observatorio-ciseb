@@ -446,6 +446,7 @@ Criar key em: https://console.cloud.google.com/ → habilitar YouTube Data API v
 | F8.3 | `[x] COMPLETO` | 2026-06-29 | Cobertura IA: queries diversificadas (ChatGPT, Gemini, AI Studio)✅ |
 | F8.4 | `[x] COMPLETO` | 2026-06-29 | Extrair ano da URL + gate rigoroso scholar + log diagnóstico IA✅ |
 | F8.5 | `[x] COMPLETO` | 2026-06-30 | Feeds RSS mortos removidos + rate limit GitHub + GITHUB_TOKEN✅ |
+| F8.6 | `[x] COMPLETO` | 2026-06-30 | Gate de ano antigo: papers 2020/1999 não alertam, GitHub/RSS sim✅ |
 
 ---
 
