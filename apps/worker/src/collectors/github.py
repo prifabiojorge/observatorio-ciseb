@@ -11,11 +11,16 @@ impressao-3d-educacao, ensino-programacao, educational-technology.
 """
 
 import asyncio
+import os
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
 from .base import BaseCollector, RawFinding
+
+# Fase 8.5: GitHub token opcional (aumenta limite de 60 → 5000 req/h)
+# Criar em: https://github.com/settings/tokens → Fine-grained PAT → Contents: Read-only
+GITHUB_TOKEN: str = os.environ.get("GITHUB_TOKEN", "")
 
 # ---------------------------------------------------------------------------
 # Tópicos de busca — palavras-chave relevantes para o observatório
@@ -56,23 +61,31 @@ class GitHubCollector(BaseCollector):
         """
         Pesquisa cada tópico configurado e coleta até 5 repositórios por tópico.
 
-        Rate limiting: sleep de 2s entre tópicos (~30 req/min, seguro
-        para o limite de 60 req/h sem token de autenticação).
+        Fase 8.5: rate limiting ajustado.
+        - Com GITHUB_TOKEN: 1s entre topics (limite 5000 req/h)
+        - Sem GITHUB_TOKEN: 4s entre topics (limite 60 req/h, 19 topics = 76s)
         """
         findings: list[RawFinding] = []
+        headers = {
+            "User-Agent": "ObservatorioCISEB/1.0",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        # Fase 8.5: adicionar Authorization header se token configurado
+        if GITHUB_TOKEN:
+            headers["Authorization"] = f"token {GITHUB_TOKEN}"
+
+        sleep_seconds = 1 if GITHUB_TOKEN else 4
+
         async with httpx.AsyncClient(
             timeout=15.0,
-            headers={
-                "User-Agent": "ObservatorioCISEB/1.0",
-                "Accept": "application/vnd.github.v3+json",
-            },
+            headers=headers,
         ) as client:
             for topic in TOPICS:
                 try:
                     items = await self._search_topic(client, topic)
                     findings.extend(items)
-                    # Rate limiting: 2s entre chamadas (~30 req/min)
-                    await asyncio.sleep(2)
+                    # Rate limiting: 1s com token, 4s sem token
+                    await asyncio.sleep(sleep_seconds)
                 except Exception as exc:
                     print(f"[github] Erro no tópico {topic}: {exc}")
         return findings

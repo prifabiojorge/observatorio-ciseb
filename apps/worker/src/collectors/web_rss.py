@@ -31,6 +31,7 @@ FEEDS: list[dict] = [
         "name": "Porvir - Inovações em Educação",
     },
     # Fase 8.3: Tecnologia/IA BR (diversificado)
+    # Fase 8.5: canaltech removido (404), conexaoplaneta removido (403)
     {
         "url": "https://tecnoblog.net/feed/",
         "slug": "tecnoblog-rss",
@@ -41,15 +42,16 @@ FEEDS: list[dict] = [
         "slug": "olhardigital-rss",
         "name": "Olhar Digital - Tecnologia BR",
     },
+    # Fase 8.5: novos feeds de IA/tech (substituem os mortos)
     {
-        "url": "https://canaltech.com.br/feed/",
-        "slug": "canaltech-rss",
-        "name": "Canal Tech - Tecnologia BR",
+        "url": "https://www.showmetech.com.br/feed/",
+        "slug": "showmetech-rss",
+        "name": "Showmetech - Tecnologia e IA BR",
     },
     {
-        "url": "https://www.conexaoplaneta.com.br/feed/",
-        "slug": "conexaoplaneta-rss",
-        "name": "Conexão Planeta - Sustentabilidade e Educação",
+        "url": "https://inteligenciaartificial.com.br/feed/",
+        "slug": "ia-brasil-rss",
+        "name": "Inteligência Artificial Brasil - IA em Português",
     },
 ]
 
