@@ -336,6 +336,12 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
     # Fase 8.4: filtro triplo — também rejeita findings sem data de publicação
     # conhecida quando score é alto. Papers antigos sem pub_year passavam antes.
     # Agora: se metadata.year == "unknown" E score >= 75, não alertar.
+    #
+    # Fase 8.6: filtro quádruplo — se metadata.year for conhecido e antigo
+    # (< ano atual - 1), não alertar. Antes, papers de 2020/1999 com
+    # dim_novelty=100 (coletados recentemente) passavam o gate de freshness
+    # porque dim_novelty usa collected_at, não data de publicação.
+    current_year = datetime.now(timezone.utc).year
     alert_candidates = []
     for f in scored_findings:
         fid = f["id"]
@@ -355,13 +361,25 @@ async def run_enrich_and_score(batch_size: int = 20) -> dict:
         if year == "unknown" or not year:
             # Exceção: findings de GitHub/Reddit/YouTube não têm "year" no metadata
             # mas têm filtro de data próprio (pushed:>, created_utc, publishedAfter)
-            source_slug = meta.get("source", "") or meta.get("feed", "") or ""
             # Se for Scholar (acadêmico), exigir year conhecido
             if meta.get("query") and not year:
                 log.info(
                     f"[main] Achado {fid} sem data conhecida (scholar) — não alertar"
                 )
                 continue
+        # Filtro 4 (Fase 8.6): se year for conhecido e antigo, não alertar
+        # Isto captura papers de 2020/1999 que já estão no DB mas foram
+        # coletados antes do filtro F8.1 existir.
+        if year and year != "unknown":
+            try:
+                year_int = int(year)
+                if year_int < current_year - 1:
+                    log.info(
+                        f"[main] Achado {fid} antigo (year={year_int}) — não alertar"
+                    )
+                    continue
+            except (ValueError, TypeError):
+                pass  # ano inválido, manter finding
 
         alert_candidates.append(f)
 
