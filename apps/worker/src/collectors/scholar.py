@@ -11,11 +11,14 @@ considere executar em um thread executor para não bloquear o event loop.
 """
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 from scholarly import scholarly
 
 from .base import BaseCollector, RawFinding
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Queries de busca — palavras-chave em português focadas no observatório
@@ -108,6 +111,8 @@ class ScholarCollector(BaseCollector):
         Returns:
             RawFinding populado ou None se não houver dados mínimos.
         """
+        import re
+
         bib = pub.get("bib", {})
         title = bib.get("title", "Sem título")
         abstract = bib.get("abstract", "")
@@ -120,9 +125,31 @@ class ScholarCollector(BaseCollector):
         # Fase 8.1: filtrar publicações com mais de 1 ano
         # Antes: retornava papers de qualquer época, causando alertas com conteúdo antigo
         current_year = datetime.now(timezone.utc).year
+
+        # Fase 8.4: se pub_year faltar, tentar extrair da URL
+        # Muitos papers antigos no Scholar não têm pub_year preenchido,
+        # mas a URL frequentemente contém o ano (ex: /2017/, /2022/).
+        if not pub_year and url:
+            # Padrões comuns:
+            # /2017/ (path) | ?year=2020 | &year=2022 | _2021_ | /2024-06-
+            year_match = (
+                re.search(r"/(20\d{2})/", url)
+                or re.search(r"[?&_](?:year|y)=(20\d{2})", url, re.IGNORECASE)
+                or re.search(r"[_-](20\d{2})[_-]", url)
+            )
+            if year_match:
+                # Pegar o grupo de captura (apenas os 4 dígitos do ano)
+                pub_year = year_match.group(1)
+                log.info(f"[scholar] Ano extraído da URL: {pub_year} para '{title[:40]}...'")
+
         if pub_year:
             try:
-                if int(pub_year) < current_year - 1:
+                year_int = int(pub_year)
+                if year_int < current_year - 1:
+                    log.info(
+                        f"[scholar] Filtrando paper antigo: '{title[:40]}...' "
+                        f"(ano {year_int}, mínimo {current_year - 1})"
+                    )
                     return None
             except (ValueError, TypeError):
                 pass  # ano inválido, manter finding
@@ -135,7 +162,7 @@ class ScholarCollector(BaseCollector):
             language="pt",
             metadata={
                 "query": query,
-                "year": bib.get("pub_year", ""),
+                "year": pub_year or "unknown",
                 "author": bib.get("author", ""),
             },
         )
