@@ -55,9 +55,9 @@ ALL_COLLECTORS = [
     WebRSSCollector(),
     GitHubCollector(),
     YouTubeCollector(),
-    # Scholar movido para último (F8.9)
     ForumsCollector(),
     EventsCollector(),
+    ScholarCollector(),  # Fase 8.9: último (CAPTCHA/OOM isolado em subprocesso)
 ]
 
 
