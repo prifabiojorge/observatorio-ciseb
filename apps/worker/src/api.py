@@ -6,6 +6,7 @@ Fase 7 (auditoria Harness 2026-06-27): Sentry integrado para captura de erros
 em produção. Inicializado ANTES de qualquer import interno.
 """
 
+import asyncio
 import logging
 import os
 
