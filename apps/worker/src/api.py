@@ -68,23 +68,57 @@ async def health():
     return {"status": "ok", "service": "observatorio-ciseb-worker"}
 
 
-@app.post("/run")
-async def run(_: bool = Depends(verify_cron)):
-    """
-    Executa uma rodada completa do pipeline.
-    Chamado pelo cron da Vercel via /api/cron/collect.
-    Requer header Authorization: Bearer CRON_SECRET.
-    """
+# Controle de concorrência — evita 2 pipelines rodando simultaneamente
+_pipeline_running = False
+
+
+async def _run_pipeline_background():
+    """Wrapper para executar pipeline em background com error handling."""
+    global _pipeline_running
+    _pipeline_running = True
     try:
+        logger.info("[api] Pipeline background iniciado")
         await run_pipeline()
-        return {"status": "ok", "message": "Pipeline executado com sucesso"}
+        logger.info("[api] Pipeline background concluído com sucesso")
     except Exception as e:
-        # Fase 7: capturar erro no Sentry antes de propagar
+        # Fase 7: capturar erro no Sentry
         from sentry_init import capture_exception
 
         capture_exception(e, tags={"endpoint": "/run", "component": "pipeline"})
-        logger.error(f"Erro no pipeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[api] Pipeline background falhou: {e}")
+    finally:
+        _pipeline_running = False
+
+
+@app.post("/run")
+async def run(_: bool = Depends(verify_cron)):
+    """
+    Dispara uma rodada completa do pipeline EM BACKGROUND.
+    Retorna 200 imediatamente — o pipeline continua rodando após a resposta.
+
+    Fase 8.8 (auditoria Harness 2026-07-01):
+    Render Free Tier tem timeout de 60s para requisições HTTP. O pipeline
+    demora 2-5 minutos. Antes, await run_pipeline() bloqueava a resposta,
+    causando HTTP 502 (Bad Gateway) em todas as execuções do cron.
+
+    Solução: usar asyncio.create_task() para rodar o pipeline em background.
+    O endpoint retorna 200 imediatamente. O pipeline continua executando
+    após a resposta ser enviada. Erros são capturados pelo Sentry.
+
+    Chamado pelo cron do GitHub Actions diretamente (F8.7).
+    """
+    global _pipeline_running
+    if _pipeline_running:
+        return {
+            "status": "skipped",
+            "message": "Pipeline já está em execução — requisição ignorada",
+        }
+
+    asyncio.create_task(_run_pipeline_background())
+    return {
+        "status": "ok",
+        "message": "Pipeline disparado em background — monitorar logs do Render",
+    }
 
 
 @app.post("/digest")
