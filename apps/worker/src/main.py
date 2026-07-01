@@ -55,7 +55,7 @@ ALL_COLLECTORS = [
     WebRSSCollector(),
     GitHubCollector(),
     YouTubeCollector(),
-    ScholarCollector(),
+    # Scholar movido para último (F8.9)
     ForumsCollector(),
     EventsCollector(),
 ]
