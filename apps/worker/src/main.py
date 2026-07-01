@@ -480,9 +480,13 @@ async def main():
     # ── Coleta ─────────────────────────────────────────
     if phase in ("coleta", "full"):
         log.info(f"[main] Coletores ativos: {len(ALL_COLLECTORS)}")
-        results = await asyncio.gather(
-            *[run_collector(c) for c in ALL_COLLECTORS], return_exceptions=False
-        )
+        # Fase 8.8c: coletores SEQUENCIAIS (era asyncio.gather paralelo).
+        # Render Free tem 512MB RAM. Paralelo causava OOM (Out of Memory).
+        # Sequencial usa menos memória (1 coletor por vez na memória).
+        results = []
+        for collector in ALL_COLLECTORS:
+            result = await run_collector(collector)
+            results.append(result)
         total_collected = sum(r[1] for r in results)
         total_inserted = sum(r[2] for r in results)
         duplicates = total_collected - total_inserted
@@ -512,7 +516,8 @@ async def main():
         log.info("[main] ═══════════════════════════════════════════")
         log.info("[main] 🔬 FASE 3 — ENRIQUECIMENTO + SCORING")
         log.info("[main] ═══════════════════════════════════════════")
-        enrich_stats = await run_enrich_and_score(batch_size=20)
+        # Fase 8.8c: batch_size reduzido de 20 para 10 (menos memória)
+        enrich_stats = await run_enrich_and_score(batch_size=10)
         if enrich_stats["enriched"] >= 20:
             log.info("[main] ✅ CHECKPOINT F3.1: ≥20 findings scored!")
         else:
