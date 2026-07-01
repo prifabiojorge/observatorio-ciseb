@@ -29,12 +29,10 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "Paper antigo sobre robótica",
-                "abstract": "Resumo do paper",
-                "pub_year": "2020",
-            },
-            "pub_url": "https://exemplo.com/paper",
+            "title": "Paper antigo sobre robótica",
+            "abstract": "Resumo do paper",
+            "pub_year": "2020",
+            "url": "https://exemplo.com/paper",
         }
         result = collector._parse_publication(pub, "robótica")
         assert result is None, "Publicação de 2020 deve ser filtrada"
@@ -46,12 +44,10 @@ class TestScholarDateFilter:
         collector = ScholarCollector()
         current_year = datetime.now(timezone.utc).year
         pub = {
-            "bib": {
-                "title": "Paper recente sobre IA na educação",
-                "abstract": "Resumo do paper",
-                "pub_year": str(current_year),
-            },
-            "pub_url": "https://exemplo.com/paper",
+            "title": "Paper recente sobre IA na educação",
+            "abstract": "Resumo do paper",
+            "pub_year": str(current_year),
+            "url": "https://exemplo.com/paper",
         }
         result = collector._parse_publication(pub, "IA educação")
         assert result is not None, f"Publicação de {current_year} deve ser mantida"
@@ -62,11 +58,9 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "Paper sem ano",
-                "abstract": "Resumo",
-            },
-            "pub_url": "https://exemplo.com/paper-sem-data",
+            "title": "Paper sem ano",
+            "abstract": "Resumo",
+            "url": "https://exemplo.com/paper-sem-data",
         }
         result = collector._parse_publication(pub, "query")
         assert result is not None, "Publicação sem data deve ser mantida"
@@ -77,12 +71,10 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "Paper com ano inválido",
-                "abstract": "Resumo",
-                "pub_year": "abc",
-            },
-            "pub_url": "https://exemplo.com/paper",
+            "title": "Paper com ano inválido",
+            "abstract": "Resumo",
+            "pub_year": "abc",
+            "url": "https://exemplo.com/paper",
         }
         result = collector._parse_publication(pub, "query")
         assert result is not None, "Ano inválido não deve quebrar coletor"
@@ -99,11 +91,9 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "Cultura Maker em prol da inovação",
-                "abstract": "Resumo sobre maker",
-            },
-            "pub_url": "https://via.ufsc.br/wp-content/uploads/2017/11/maker.pdf",
+            "title": "Cultura Maker em prol da inovação",
+            "abstract": "Resumo sobre maker",
+            "url": "https://via.ufsc.br/wp-content/uploads/2017/11/maker.pdf",
         }
         result = collector._parse_publication(pub, "cultura maker")
         assert result is None, "Paper de 2017 (extraído da URL) deve ser filtrado"
@@ -114,11 +104,9 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "ChatGPT na educação 2025",
-                "abstract": "Resumo sobre IA",
-            },
-            "pub_url": "https://exemplo.com/2025/06/chatgpt-educacao",
+            "title": "ChatGPT na educação 2025",
+            "abstract": "Resumo sobre IA",
+            "url": "https://exemplo.com/2025/06/chatgpt-educacao",
         }
         result = collector._parse_publication(pub, "ChatGPT educação")
         assert result is not None, "Paper de 2025 (extraído da URL) deve ser mantido"
@@ -129,11 +117,9 @@ class TestScholarDateFilter:
 
         collector = ScholarCollector()
         pub = {
-            "bib": {
-                "title": "Paper antigo via query param",
-                "abstract": "Resumo",
-            },
-            "pub_url": "https://exemplo.com/paper?year=2020",
+            "title": "Paper antigo via query param",
+            "abstract": "Resumo",
+            "url": "https://exemplo.com/paper?year=2020",
         }
         result = collector._parse_publication(pub, "query")
         assert result is None, "Paper de 2020 (extraído de ?year=) deve ser filtrado"
@@ -146,11 +132,9 @@ class TestScholarDateFilter:
         # URL real do alerta que você recebeu: S1809-38762022000301084
         # Padrão: S + ISSN + ANO + volume + numero + artigo
         pub = {
-            "bib": {
-                "title": "Proposta curricular inovadora",
-                "abstract": "Resumo",
-            },
-            "pub_url": "http://educa.fcc.org.br/scielo.php?pid=S1809-38762022000301084",
+            "title": "Proposta curricular inovadora",
+            "abstract": "Resumo",
+            "url": "http://educa.fcc.org.br/scielo.php?pid=S1809-38762022000301084",
         }
         # 2022 está na URL, mas não no formato /2022/ — deve ser mantido
         # (não conseguimos extrair facilmente do pid SciELO sem regex complexa)
